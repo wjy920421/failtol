@@ -45,6 +45,7 @@ import zmq
   kazoo tutorial and reference: https://kazoo.readthedocs.org/en/latest/
 '''
 import kazoo.client
+import kazoo.exceptions
 '''
   bottle tutorial and reference: http://bottlepy.org/docs/dev/index.html
 '''
@@ -221,10 +222,11 @@ def main():
         setup_pub_sub(zmq_context, args.sub_to_name)
 
         # Initialize sequence numbering by ZooKeeper
-        if not kz.exists(SEQUENCE_OBJECT):
-            kz.create(SEQUENCE_OBJECT, "0")
-        else:
-            kz.set(SEQUENCE_OBJECT, "0")
+        try:
+            kz.create(path=SEQUENCE_OBJECT, value="0", makepath=True)
+        except kazoo.exceptions.NodeExistsError as nee:
+            kz.set(SEQUENCE_OBJECT, "0") # Another instance has already created the node
+                                         # or it is left over from prior runs
 
         # Wait for all DBs to be ready
         barrier_path = APP_DIR+BARRIER_NAME
