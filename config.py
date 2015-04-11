@@ -1,9 +1,21 @@
+# AWS region
 AWS_REGION = "us-west-2"
 
+# Default arguments of DB instance
 DEFAULT_SQS_IN  = "LOADBALANCE_IN"
 DEFAULT_SQS_OUT = "LOADBALANCE_OUT"
-
 DEFAULT_BASE_PORT       = 7777
 DEFAULT_SUBSCRIBE_TO    = "localhost"
 DEFAULT_WRITE_CAPACITY  = 10
 DEFAULT_READ_CAPACITY   = 10
+
+# Instance naming
+BASE_INSTANCE_NAME = "DB"
+
+# Names for ZooKeeper hierarchy
+APP_DIR = "/" + BASE_INSTANCE_NAME
+PUB_PORT = "/Pub"
+SUB_PORTS = "/Sub"
+SEQUENCE_OBJECT = APP_DIR + "/SeqNum"
+DEFAULT_NAME = BASE_INSTANCE_NAME + "1"
+BARRIER_NAME = "/Ready"
