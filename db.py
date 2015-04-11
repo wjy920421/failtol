@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from bottle import route, run, request, response, abort, default_app
 import boto.sqs
 import boto.sqs.message
 
@@ -13,15 +14,14 @@ import argparse
 import contextlib
 
 import config
+import gen_ports
 
-AWS_REGION = "us-west-2"
-QUEUE_IN = "ex6_in"
-QUEUE_OUT = "ex6_out"
+
+
 MAX_WAIT_S = 20 # SQS sets max. of 20 s
 DEFAULT_VIS_TIMEOUT_S = 60
 
 def build_parser():
-    ''' Define parser for command-line arguments '''
     parser = argparse.ArgumentParser(description="Web server demonstrating final project technologies")
     parser.add_argument("zkhost", help="ZooKeeper host string (name:port or IP:port, with port defaulting to 2181)")
     parser.add_argument("web_port", type=int, help="Web server port number", nargs='?', default=8080)
@@ -54,6 +54,9 @@ def main():
         sys.exit(1)
 
     else:
+        app = default_app()
+        run(app, host="localhost", port=args.web_port)
+
         """
         while True:
             queue_in = conn.get_queue(QUEUE_IN)
