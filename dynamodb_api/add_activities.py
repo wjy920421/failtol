@@ -8,12 +8,11 @@ import json
 import utils
 import time
 
-def do_add_activities(user_id, add_activities):
+def do_add_activities(table, user_id, add_activities):
     
     '''
       Basic server that returns the following JSON response
     '''
-    table = utils.get_table()
 
     hasItem = table.has_item(id=user_id)
     if (hasItem):

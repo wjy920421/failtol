@@ -6,9 +6,9 @@ import utils
 Get item by id
 """
 
-def do_retrieve(userID, userName):
+def do_retrieve(table, userID, userName):
             
-    users = utils.get_table()
+    users = table
 
     #Check if the items exists in DB
     nullUserID = False
