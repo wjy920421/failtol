@@ -9,12 +9,11 @@ import utils
 import config
 
 
-def do_create(user_id, username, activities):
+def do_create(table, user_id, username, activities):
     
     '''
       Basic server that returns the following JSON response
     '''
-    table = utils.get_table()
 
     data = {
         'id': user_id,

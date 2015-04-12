@@ -2,9 +2,7 @@ import utils
 import json
 
 
-def do_delete(accID, accName):
-    
-    table = utils.get_table()
+def do_delete(table, accID, accName):
 
     nullAccID = False
     accExist = False
