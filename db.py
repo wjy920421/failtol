@@ -6,7 +6,7 @@ import boto.sqs.message
 import zmq
 
 import kazoo.exceptions
-import kazooclientlast
+from zookeeper import kazooclientlast
 
 import sys
 import json
