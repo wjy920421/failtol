@@ -89,14 +89,14 @@ def setup_pub_sub(zmq_context, sub_to_name, pub_port, sub_ports, instance_name):
         sub_sockets.append(sub_socket)
         print "instance {0} connected to {1} on {2}".format(instance_name, sub_to_name, sub_port)
 
-def setup_sqs():
+def setup_sqs(queue_in_name, queue_out_name):
     try:
         conn = boto.sqs.connect_to_region(config.AWS_REGION)
         if conn is None:
             sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
             sys.exit(1)
-        queue_in = conn.create_queue(QUEUE_IN_NAME)
-        queue_out = conn.create_queue(QUEUE_OUT_NAME)
+        queue_in = conn.create_queue(queue_in_name)
+        queue_out = conn.create_queue(queue_out_name)
 
         return conn
 
@@ -132,10 +132,10 @@ def main():
     db_manager = DynamoDBManager(table_name=DYNAMODB_NAME, aws_region=config.AWS_REGION, write_cap=write_cap, read_cap=read_cap)
     print 'Table named "%s" has been created.' % DYNAMODB_NAME
     if config.DELETE_DYNAMODB_ON_EXIT:
-        atexit.register(utils.delete_table)
+        atexit.register(db_manager.delete_table)
 
     # Setup the SQS-in and SQS-out queues. 
-    conn = setup_sqs()
+    conn = setup_sqs(QUEUE_IN_NAME, QUEUE_OUT_NAME)
 
     # Open connection to ZooKeeper and context for zmq
     with kzcl(kazooclientlast.KazooClientLast(hosts=zkhost)) as kz, zmqcm(zmq.Context.instance()) as zmq_context:
@@ -158,6 +158,7 @@ def main():
         while len(kz.get_children(barrier_path)) < instances_num:
             time.sleep(1)
         print "Past rendezvous"
+        print "%s is now running...\n" % instance_name
 
         # Create the sequence counter.
         seq_num = kz.Counter(config.SEQUENCE_OBJECT)

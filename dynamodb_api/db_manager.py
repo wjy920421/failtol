@@ -16,39 +16,39 @@ class DynamoDBManager():
     def __init__(self, table_name, aws_region, write_cap=10, read_cap=10):
         self.TABLE_NAME = table_name
         self.REGION = aws_region
-        utils.create_table()
+        self.create_table()
 
-    def get_table():
+    def get_table(self):
         return Table(self.TABLE_NAME, connection=boto.dynamodb2.connect_to_region(self.REGION))
 
-    def create_table():
+    def create_table(self):
         try:
             table = Table.create(self.TABLE_NAME, schema=[HashKey('id')], connection=boto.dynamodb2.connect_to_region(self.REGION))
             return table
         except Exception, e:
-            return get_table()
+            return self.get_table()
 
-    def delete_table():
-        table = get_table()
+    def delete_table(self):
+        table = self.get_table()
         try:
             table.delete()
             return 'Table is deleted.'
         except Exception, e:
             return ''
 
-    def do_create(user_id, username, activities):
+    def do_create(self, user_id, username, activities):
         table = self.get_table()
         return api_create.do_create(table, user_id, username, activities)
 
-    def do_delete(user_id, username):
+    def do_delete(self, user_id, username):
         table = self.get_table()
         return api_delete.do_delete(table, user_id, username)
 
-    def do_retrieve(user_id, username):
+    def do_retrieve(self, user_id, username):
         table = self.get_table()
         return api_retrieve.do_retrieve(table, user_id, username)
 
-    def do_add_activities(user_id, add_activities):
+    def do_add_activities(self, user_id, add_activities):
         table = self.get_table()
         return api_add_activities.do_add_activities(table, user_id, add_activities)
 
