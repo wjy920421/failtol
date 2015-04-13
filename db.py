@@ -188,18 +188,8 @@ def main():
                 continue
 
             # Perform the operation as specified in the message
-            response_json = ''
-            request_path = request_dict['path']
-            request_query = request_dict['query']
-            if request_path == 'create':
-                response_json = db_manager.do_create(request_query['id'], request_query['name'], request_query['activities'])
-            elif request_path == 'delete':
-                response_json = db_manager.do_delete(request_query['id'], request_query['name'])
-            elif request_path == 'retrieve':
-                response_json = db_manager.do_retrieve(request_query['id'], request_query['name'])
-            elif request_path == 'add_activities':
-                response_json = db_manager.do_add_activities(request_query['id'], request_query['activities'])
-
+            response_json = db_manager.execute(request_dict)
+            
             # Delete the message on success
             queue_in.delete_message(request_message)
 
