@@ -41,6 +41,38 @@ def _response():
         }
 
 """
+retrieve REST API
+"""
+@route('/retrieve')
+def retrieve():
+    userID = request.query.get("id")
+    username = request.query.get("name")
+    activities = request.query.get("activities")
+
+    data = {}
+    data["type"] = 'person'
+    data["id"]   = userID
+
+    if not username:
+        data["name"] = username
+
+    if not activities:
+        data["activities"] = activities
+
+    request_json = {"data" : data}
+          
+
+    req = json.dumps(request_json)
+    m = Message()
+    m.set_body(req)
+
+    my_queue = conn.get_queue(QUEUE_IN)
+    my_queue.write(m)
+
+    response.status = 202
+    return _response()
+
+"""
 Delete REST API
 """
 @route('/delete')
