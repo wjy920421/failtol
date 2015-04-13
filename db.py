@@ -3,11 +3,6 @@
 import boto.sqs
 import boto.sqs.message
 
-import zmq
-
-import kazoo.exceptions
-from database.zookeeper import kazooclientlast
-
 import sys
 import json
 import time
@@ -16,11 +11,11 @@ import atexit
 import signal
 import os.path
 import argparse
-import contextlib
 
 import config
-from database import gen_ports
 from database.dynamodb.db_manager import DynamoDBManager
+from database.zookeeper.zookeeper_client import ZookeeperClient
+from database.pubsub.pubsub import PubSubManager
 
 
 
@@ -44,49 +39,8 @@ def build_parser():
     parser.add_argument("read_cap", type=int, help="Read capacity of DynamoDB (reads/s)", nargs='?', default=config.DEFAULT_READ_CAPACITY)
     return parser
 
-@contextlib.contextmanager
-def zmqcm(zmq_context):
-    '''
-    This function wraps a context manager around the zmq context, allowing the client to be used in a 'with' statement.
-    '''
-    try:
-        yield zmq_context
-    finally:
-        print "Closing sockets"
-        # The "0" argument destroys all pending messages immediately without waiting for them to be delivered
-        zmq_context.destroy(0)
 
-@contextlib.contextmanager
-def kzcl(kz):
-    '''
-    This function wraps a context manager around the kazoo client, allowing the client to be used in a 'with' statement.
-    '''
-    kz.start()
-    try:
-        yield kz
-    finally:
-        print "Closing ZooKeeper connection"
-        kz.stop()
-        kz.close()
 
-def setup_pub_sub(zmq_context, sub_to_name, pub_port, sub_ports, instance_name):
-    '''
-    Set up the publish and subscribe connections.
-    '''
-
-    # Open a publish socket.
-    pub_socket = zmq_context.socket(zmq.PUB)
-    pub_socket.bind("tcp://*:{0}".format(pub_port))
-    print "instance {0} binded on {1}".format(instance_name, pub_port)
-
-    # Open subscribe sockets.
-    sub_sockets = []
-    for sub_port in sub_ports:
-        sub_socket = zmq_context.socket(zmq.SUB)
-        sub_socket.setsockopt(zmq.SUBSCRIBE, "")
-        sub_socket.connect("tcp://{0}:{1}".format(sub_to_name, sub_port))
-        sub_sockets.append(sub_socket)
-        print "instance {0} connected to {1} on {2}".format(instance_name, sub_to_name, sub_port)
 
 def setup_sqs(queue_in_name, queue_out_name):
     try:
@@ -136,37 +90,19 @@ def main():
     # Setup the SQS-in and SQS-out queues. 
     conn = setup_sqs(QUEUE_IN_NAME, QUEUE_OUT_NAME)
 
-    # Open connection to ZooKeeper and context for zmq
-    with kzcl(kazooclientlast.KazooClientLast(hosts=zkhost)) as kz, zmqcm(zmq.Context.instance()) as zmq_context:
+    # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
+    with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
+         PubSubManager(instance_name=instance_name, instances=instances, proxied_instances=proxied_instances, sub_to_name=sub_to_name, base_port=base_port) as pubsub_manager:
+         
 
-        # Set up publish and subscribe sockets
-        pub_port, sub_ports = gen_ports.gen_ports(base_port, instances, proxied_instances, instance_name)
-        setup_pub_sub(zmq_context, sub_to_name, pub_port, sub_ports, instance_name)
-
-        # Initialize sequence numbering by ZooKeeper
-        try:
-            kz.create(path=config.SEQUENCE_OBJECT, value="0", makepath=True)
-        except kazoo.exceptions.NodeExistsError as nee:
-            kz.set(config.SEQUENCE_OBJECT, "0") # Another instance has already created the node, or it is left over from prior runs
-
-        # Wait for all DBs to be ready
-        barrier_path = config.APP_DIR + config.BARRIER_NAME
-        kz.ensure_path(barrier_path)
-        b = kz.create(barrier_path + '/' + instance_name, ephemeral=True)
-        while len(kz.get_children(barrier_path)) < instances_num:
-            time.sleep(1)
-        print "Past rendezvous"
         print "%s is now running...\n" % instance_name
-
-        # Create the sequence counter.
-        seq_num = kz.Counter(config.SEQUENCE_OBJECT)
 
         # Process requests from SQS-in
         """
         while True:
-            seq_num += 1
-            print "seq_num = %d" % seq_num.last_set
-            time.sleep(2)
+            zk_client.seq_num += 1
+            print "seq_num = %d" % zk_client.seq_num.last_set
+            time.sleep(1)
         """
         while True:
             # Get a message from the start point of the queue
@@ -197,7 +133,6 @@ def main():
             queue_out = conn.get_queue(QUEUE_OUT_NAME)
             queue_out.write(response_message)
             print "Response inserted into output queue."
-
 
 
 if __name__ == "__main__":
