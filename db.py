@@ -6,7 +6,7 @@ import boto.sqs.message
 import zmq
 
 import kazoo.exceptions
-from zookeeper import kazooclientlast
+from database.zookeeper import kazooclientlast
 
 import sys
 import json
@@ -19,9 +19,8 @@ import argparse
 import contextlib
 
 import config
-import gen_ports
-
-from dynamodb_api.db_manager import DynamoDBManager
+from database import gen_ports
+from database.dynamodb.db_manager import DynamoDBManager
 
 
 
@@ -148,8 +147,7 @@ def main():
         try:
             kz.create(path=config.SEQUENCE_OBJECT, value="0", makepath=True)
         except kazoo.exceptions.NodeExistsError as nee:
-            kz.set(config.SEQUENCE_OBJECT, "0") # Another instance has already created the node
-                                         # or it is left over from prior runs
+            kz.set(config.SEQUENCE_OBJECT, "0") # Another instance has already created the node, or it is left over from prior runs
 
         # Wait for all DBs to be ready
         barrier_path = config.APP_DIR + config.BARRIER_NAME
