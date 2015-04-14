@@ -10,7 +10,7 @@ import argparse
 import threading
 
 # Local files
-import gen_ports
+from database.pubsub import gen_ports
 
 BASE_PORT = 7778
 
