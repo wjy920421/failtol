@@ -23,6 +23,11 @@ from database.pubsub.pubsub import PubSubManager
 MAX_WAIT_S = 20 # SQS sets max. of 20 s
 DEFAULT_VIS_TIMEOUT_S = 60
 
+def signal_handler(signal, frame):
+    print "EXIT_SIGNAL: shutting down all threads..."
+    global exit_signal
+    exit_signal = True
+
 def build_parser():
     '''
     Parse the arguments of the script.
@@ -40,9 +45,6 @@ def build_parser():
     parser.add_argument("read_cap", type=int, help="Read capacity of DynamoDB (reads/s)", nargs='?', default=config.DEFAULT_READ_CAPACITY)
     return parser
 
-
-
-
 def setup_sqs(queue_in_name, queue_out_name):
     try:
         conn = boto.sqs.connect_to_region(config.AWS_REGION)
@@ -59,14 +61,58 @@ def setup_sqs(queue_in_name, queue_out_name):
         sys.stderr.write(str(e))
         sys.exit(1)
 
+def setup_synchronization():
+    global cv
+    global exit_signal
+    cv = threading.Condition()
+    exit_signal = False
+
 def subscribe(pubsub_manager):
+    global exit_signal
     while not exit_signal:
         msg = pubsub_manager.subscribe()
         if msg is None:
             time.sleep(1)
             continue
-        print "Subscribe:"
-        print msg 
+        print "Subscribe: %s" % msg
+
+    print "Subscribe thread terminated"
+
+def worker(queue_in, queue_out, pubsub_manager, zk_client, db_manager):
+    global exit_signal
+    while not exit_signal:
+        # Get a message from the start point of the queue
+        request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
+        if request_message is None:
+            time.sleep(1)
+            continue
+
+        # Convert the message to a dictionary
+        request_json = request_message.get_body()
+        print "Request received from SQS-in: %s" % request_json
+        try:
+            request_dict = json.loads(request_json)
+        except Exception as e:
+            print "Invalid Request."
+            queue_in.delete_message(request_message)
+            continue
+
+        # Publish for synchronization
+        pubsub_manager.publish(request_json)
+
+        # Perform the operation as specified in the message
+        response_json = db_manager.execute(request_dict)
+        
+        # Delete the message on success
+        queue_in.delete_message(request_message)
+
+        # Put the response on the output queue, in JSON representation.
+        response_message = boto.sqs.message.Message()
+        response_message.set_body(response_json)
+        queue_out.write(response_message)
+        print "Response inserted into SQS-out: %s" % response_json
+
+    print "Worker thread terminated"
 
 def main():
     '''
@@ -99,67 +145,30 @@ def main():
 
     # Setup the SQS-in and SQS-out queues. 
     conn = setup_sqs(QUEUE_IN_NAME, QUEUE_OUT_NAME)
+    queue_in = conn.create_queue(QUEUE_IN_NAME)
+    queue_out = conn.create_queue(QUEUE_OUT_NAME)
 
     # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
     with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
          PubSubManager(instance_name=instance_name, instances=instances, proxied_instances=proxied_instances, sub_to_name=sub_to_name, base_port=base_port) as pubsub_manager:
         
+        setup_synchronization()
+
+        worker_thread = threading.Thread(target=worker, args=(queue_in, queue_out, pubsub_manager, zk_client, db_manager,))
+        worker_thread.start()
+
         subscribe_thread = threading.Thread(target=subscribe, args=(pubsub_manager,))
         subscribe_thread.start()
 
         print "%s is now running...\n" % instance_name
 
-        # Process requests from SQS-in
-        """
-        while True:
-            zk_client.seq_num += 1
-            print "seq_num = %d" % zk_client.seq_num.last_set
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        while worker_thread.is_alive() or subscribe_thread.is_alive():
             time.sleep(1)
-        """
-        while True:
-            # Get a message from the start point of the queue
-            queue_in = conn.get_queue(QUEUE_IN_NAME)
-            request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
-            if request_message is None:
-                time.sleep(1)
-                continue
-
-            # Convert the message to a dictionary
-            request_json = request_message.get_body()
-            print "Request received from SQS-in:"
-            print request_json
-            try:
-                request_dict = json.loads(request_json)
-            except Exception as e:
-                print "Invalid Request."
-                queue_in.delete_message(request_message)
-                continue
-
-            # Publish for synchronization
-            pubsub_manager.publish(request_json)
-
-            # Perform the operation as specified in the message
-            response_json = db_manager.execute(request_dict)
-            
-            # Delete the message on success
-            queue_in.delete_message(request_message)
-
-            # Put the response on the output queue, in JSON representation.
-            response_message = boto.sqs.message.Message()
-            response_message.set_body(response_json)
-            queue_out = conn.get_queue(QUEUE_OUT_NAME)
-            queue_out.write(response_message)
-            print "Response inserted into SQS-out:"
-            print response_json
-
 
 if __name__ == "__main__":
-    try:
-        global exit_signal
-        exit_signal = False
-        main()
-    except KeyboardInterrupt:
-        exit_signal = True
-        print "EXIT_SIGNAL: shutting down all threads..."
+    main()
 
 
