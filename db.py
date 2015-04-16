@@ -11,6 +11,7 @@ import atexit
 import signal
 import os.path
 import argparse
+import threading
 
 import config
 from database.dynamodb.db_manager import DynamoDBManager
@@ -58,6 +59,15 @@ def setup_sqs(queue_in_name, queue_out_name):
         sys.stderr.write(str(e))
         sys.exit(1)
 
+def subscribe(pubsub_manager):
+    while not exit_signal:
+        msg = pubsub_manager.subscribe()
+        if msg is None:
+            time.sleep(1)
+            continue
+        print "Subscribe:"
+        print msg 
+
 def main():
     '''
     Entry of the db instance.
@@ -93,7 +103,9 @@ def main():
     # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
     with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
          PubSubManager(instance_name=instance_name, instances=instances, proxied_instances=proxied_instances, sub_to_name=sub_to_name, base_port=base_port) as pubsub_manager:
-         
+        
+        subscribe_thread = threading.Thread(target=subscribe, args=(pubsub_manager,))
+        subscribe_thread.start()
 
         print "%s is now running...\n" % instance_name
 
@@ -107,13 +119,12 @@ def main():
         while True:
             # Get a message from the start point of the queue
             queue_in = conn.get_queue(QUEUE_IN_NAME)
-            request_messages = queue_in.get_messages(num_messages=1, visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
-            if len(request_messages) == 0:
+            request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
+            if request_message is None:
                 time.sleep(1)
                 continue
 
             # Convert the message to a dictionary
-            request_message = request_messages[0]
             request_json = request_message.get_body()
             print "Request received from SQS-in:"
             print request_json
@@ -123,6 +134,9 @@ def main():
                 print "Invalid Request."
                 queue_in.delete_message(request_message)
                 continue
+
+            # Publish for synchronization
+            pubsub_manager.publish(request_json)
 
             # Perform the operation as specified in the message
             response_json = db_manager.execute(request_dict)
@@ -140,6 +154,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        global exit_signal
+        exit_signal = False
+        main()
+    except KeyboardInterrupt:
+        exit_signal = True
+        print "EXIT_SIGNAL: shutting down all threads..."
 
 
