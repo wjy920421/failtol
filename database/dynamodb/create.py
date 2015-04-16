@@ -43,7 +43,7 @@ def do_create(table, user_id, username, activities):
                 'type'  :   'person',
                 'id'    :   user_id,
                 'links' :   {
-                    'self': 'http://' + config.HOST + ':' + str(config.PORT) + '/retrieve?id=' + user_id,
+                    'self': 'http://localhost:8080' + '/retrieve?id=' + user_id,
                 }
             }
         }

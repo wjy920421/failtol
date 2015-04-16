@@ -115,9 +115,12 @@ def main():
             # Convert the message to a dictionary
             request_message = request_messages[0]
             request_json = request_message.get_body()
+            print "Request received from SQS-in:"
+            print request_json
             try:
                 request_dict = json.loads(request_json)
             except Exception as e:
+                print "Invalid Request."
                 queue_in.delete_message(request_message)
                 continue
 
@@ -132,7 +135,8 @@ def main():
             response_message.set_body(response_json)
             queue_out = conn.get_queue(QUEUE_OUT_NAME)
             queue_out.write(response_message)
-            print "Response inserted into output queue."
+            print "Response inserted into SQS-out:"
+            print response_json
 
 
 if __name__ == "__main__":
