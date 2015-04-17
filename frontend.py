@@ -20,16 +20,15 @@ from bottle import route, run, request, response, abort, default_app
 
 from bottle import run, error, route
 
-AWS_REGION = "us-west-2"
-MAX_SECONDS = 180
-PORT = 8080
+import config
 
-QUEUE_IN = "djWang"#sys.argv[1]
 
-conn = boto.sqs.connect_to_region(AWS_REGION)
+QUEUE_IN = "djflipout"#sys.argv[1]
+
+conn = boto.sqs.connect_to_region(config.AWS_REGION)
 
 if conn == None:
-    sys.stderr.write("Could not connect to AWS region '{0}'\n".format(AWS_REGION))
+    sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
     sys.exit(1)
 
 def _response():
@@ -103,12 +102,12 @@ def delete():
 Create SQS connection
 """
 try:
-    conn = boto.sqs.connect_to_region(AWS_REGION)
+    conn = boto.sqs.connect_to_region(config.AWS_REGION)
     if conn == None:
-        sys.stderr.write("Could not connect to AWS region '{0}'\n".format(AWS_REGION))
+        sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
         sys.exit(1)
 
-    conn.create_queue(QUEUE_IN, MAX_SECONDS)
+    conn.create_queue(QUEUE_IN, config.MAX_SECONDS)
     
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
@@ -117,4 +116,4 @@ except Exception as e:
 
 
 app = default_app()
-run(app, host="localhost", port=PORT)
+run(app, host="localhost", port=config.PORT)
