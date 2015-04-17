@@ -6,6 +6,7 @@ import boto.sqs.message
 import sys
 import json
 import time
+import heapq
 import random
 import atexit
 import signal
@@ -17,6 +18,7 @@ import config
 from database.dynamodb.db_manager import DynamoDBManager
 from database.zookeeper.zookeeper_client import ZookeeperClient
 from database.pubsub.pubsub import PubSubManager
+from database.message_queue import MessageQueue
 
 
 
@@ -26,7 +28,9 @@ DEFAULT_VIS_TIMEOUT_S = 60
 def signal_handler(signal, frame):
     print "EXIT_SIGNAL: shutting down all threads..."
     global exit_signal
+    global message_queue
     exit_signal = True
+    message_queue.notify_all()
 
 def build_parser():
     '''
@@ -62,24 +66,38 @@ def setup_sqs(queue_in_name, queue_out_name):
         sys.exit(1)
 
 def setup_synchronization():
-    global cv
+    # global cv
     global exit_signal
-    cv = threading.Condition()
+    # cv = threading.Condition()
     exit_signal = False
 
-def subscribe(pubsub_manager):
+def subscribe():
     global exit_signal
+    global message_queue
+    global pubsub_manager
+
     while not exit_signal:
         msg = pubsub_manager.subscribe()
         if msg is None:
             time.sleep(1)
             continue
-        print "Subscribe: %s" % msg
+
+        # print "Subscribe: %s" % msg
+
+        request_dict = json.loads(msg)
+        seq = request_dict['seq_num']
+        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
 
     print "Subscribe thread terminated"
 
-def worker(queue_in, queue_out, pubsub_manager, zk_client, db_manager):
+def worker():
     global exit_signal
+    global queue_in
+    global zk_client
+    global db_manager
+    global message_queue
+    global pubsub_manager
+
     while not exit_signal:
         # Get a message from the start point of the queue
         request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
@@ -87,9 +105,13 @@ def worker(queue_in, queue_out, pubsub_manager, zk_client, db_manager):
             time.sleep(1)
             continue
 
+        # Request a sequence number from zookeeper
+        zk_client.seq_num += 1
+        seq = zk_client.seq_num.last_set
+
         # Convert the message to a dictionary
         request_json = request_message.get_body()
-        print "Request received from SQS-in: %s" % request_json
+        # print "Request received from SQS-in: %s" % request_json
         try:
             request_dict = json.loads(request_json)
         except Exception as e:
@@ -97,27 +119,58 @@ def worker(queue_in, queue_out, pubsub_manager, zk_client, db_manager):
             queue_in.delete_message(request_message)
             continue
 
+        # Insert the message into MessageQueue
+        request_dict['primary'] = True
+        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
+
         # Publish for synchronization
+        request_dict['seq_num'] = seq
+        request_dict['primary'] = False
+        request_json = json.dumps(request_dict)
         pubsub_manager.publish(request_json)
+        
+        # Delete the message
+        queue_in.delete_message(request_message)
+
+    print "Worker thread terminated"
+
+def process():
+    global exit_signal
+    global queue_out
+    global db_manager
+    global message_queue
+
+    while not exit_signal:
+        # Pop the message from MessageQueue
+        request_dict = message_queue.pop()
+        if request_dict is None:
+            continue
+
+        print "Processing request%s: %s" % (" (primary)" if request_dict['primary'] else "", request_dict)
 
         # Perform the operation as specified in the message
         response_json = db_manager.execute(request_dict)
-        
-        # Delete the message on success
-        queue_in.delete_message(request_message)
 
-        # Put the response on the output queue, in JSON representation.
-        response_message = boto.sqs.message.Message()
-        response_message.set_body(response_json)
-        queue_out.write(response_message)
-        print "Response inserted into SQS-out: %s" % response_json
+        # Insert the response in the output queue, in JSON representation.
+        # Only the primary database writes the result
+        if request_dict['primary'] == True:
+            response_message = boto.sqs.message.Message()
+            response_message.set_body(response_json)
+            queue_out.write(response_message)
+            # print "Response inserted into SQS-out: %s" % response_json
 
-    print "Worker thread terminated"
+    print "Process thread terminated"
 
 def main():
     '''
     Entry of the db instance.
     '''
+    global queue_in
+    global queue_out
+    global zk_client
+    global db_manager
+    global message_queue
+    global pubsub_manager
 
     # Parse the arguments
     parser = build_parser()
@@ -151,21 +204,26 @@ def main():
     # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
     with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
          PubSubManager(instance_name=instance_name, instances=instances, proxied_instances=proxied_instances, sub_to_name=sub_to_name, base_port=base_port) as pubsub_manager:
-        
-        setup_synchronization()
 
-        worker_thread = threading.Thread(target=worker, args=(queue_in, queue_out, pubsub_manager, zk_client, db_manager,))
+        setup_synchronization()
+        
+        message_queue = MessageQueue(zk_client.seq_num.last_set)
+
+        worker_thread = threading.Thread(target=worker)
         worker_thread.start()
 
-        subscribe_thread = threading.Thread(target=subscribe, args=(pubsub_manager,))
+        subscribe_thread = threading.Thread(target=subscribe)
         subscribe_thread.start()
+
+        process_thread = threading.Thread(target=process)
+        process_thread.start()
 
         print "%s is now running...\n" % instance_name
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         
-        while worker_thread.is_alive() or subscribe_thread.is_alive():
+        while worker_thread.is_alive() or subscribe_thread.is_alive() or process_thread.is_alive():
             time.sleep(1)
 
 if __name__ == "__main__":
