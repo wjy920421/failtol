@@ -3,30 +3,34 @@
 import boto.sqs
 import boto.sqs.message
 
-import zmq
-
-import kazoo.exceptions
-from zookeeper import kazooclientlast
-
 import sys
 import json
 import time
+import heapq
 import random
 import atexit
 import signal
 import os.path
 import argparse
-import contextlib
+import threading
 
 import config
-import gen_ports
-
-from dynamodb_api.db_manager import DynamoDBManager
+from database.dynamodb.db_manager import DynamoDBManager
+from database.zookeeper.zookeeper_client import ZookeeperClient
+from database.pubsub.pubsub import PubSubManager
+from database.message_queue import MessageQueue
 
 
 
 MAX_WAIT_S = 20 # SQS sets max. of 20 s
 DEFAULT_VIS_TIMEOUT_S = 60
+
+def signal_handler(signal, frame):
+    print "EXIT_SIGNAL: shutting down all threads..."
+    global exit_signal
+    global message_queue
+    exit_signal = True
+    message_queue.notify_all()
 
 def build_parser():
     '''
@@ -45,50 +49,6 @@ def build_parser():
     parser.add_argument("read_cap", type=int, help="Read capacity of DynamoDB (reads/s)", nargs='?', default=config.DEFAULT_READ_CAPACITY)
     return parser
 
-@contextlib.contextmanager
-def zmqcm(zmq_context):
-    '''
-    This function wraps a context manager around the zmq context, allowing the client to be used in a 'with' statement.
-    '''
-    try:
-        yield zmq_context
-    finally:
-        print "Closing sockets"
-        # The "0" argument destroys all pending messages immediately without waiting for them to be delivered
-        zmq_context.destroy(0)
-
-@contextlib.contextmanager
-def kzcl(kz):
-    '''
-    This function wraps a context manager around the kazoo client, allowing the client to be used in a 'with' statement.
-    '''
-    kz.start()
-    try:
-        yield kz
-    finally:
-        print "Closing ZooKeeper connection"
-        kz.stop()
-        kz.close()
-
-def setup_pub_sub(zmq_context, sub_to_name, pub_port, sub_ports, instance_name):
-    '''
-    Set up the publish and subscribe connections.
-    '''
-
-    # Open a publish socket.
-    pub_socket = zmq_context.socket(zmq.PUB)
-    pub_socket.bind("tcp://*:{0}".format(pub_port))
-    print "instance {0} binded on {1}".format(instance_name, pub_port)
-
-    # Open subscribe sockets.
-    sub_sockets = []
-    for sub_port in sub_ports:
-        sub_socket = zmq_context.socket(zmq.SUB)
-        sub_socket.setsockopt(zmq.SUBSCRIBE, "")
-        sub_socket.connect("tcp://{0}:{1}".format(sub_to_name, sub_port))
-        sub_sockets.append(sub_socket)
-        print "instance {0} connected to {1} on {2}".format(instance_name, sub_to_name, sub_port)
-
 def setup_sqs(queue_in_name, queue_out_name):
     try:
         conn = boto.sqs.connect_to_region(config.AWS_REGION)
@@ -105,10 +65,112 @@ def setup_sqs(queue_in_name, queue_out_name):
         sys.stderr.write(str(e))
         sys.exit(1)
 
+def setup_synchronization():
+    # global cv
+    global exit_signal
+    # cv = threading.Condition()
+    exit_signal = False
+
+def subscribe():
+    global exit_signal
+    global message_queue
+    global pubsub_manager
+
+    while not exit_signal:
+        msg = pubsub_manager.subscribe()
+        if msg is None:
+            time.sleep(1)
+            continue
+
+        # print "Subscribe: %s" % msg
+
+        request_dict = json.loads(msg)
+        seq = request_dict['seq_num']
+        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
+
+    print "Subscribe thread terminated"
+
+def worker():
+    global exit_signal
+    global queue_in
+    global zk_client
+    global db_manager
+    global message_queue
+    global pubsub_manager
+
+    while not exit_signal:
+        # Get a message from the start point of the queue
+        request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
+        if request_message is None:
+            time.sleep(1)
+            continue
+
+        # Request a sequence number from zookeeper
+        zk_client.seq_num += 1
+        seq = zk_client.seq_num.last_set
+
+        # Convert the message to a dictionary
+        request_json = request_message.get_body()
+        # print "Request received from SQS-in: %s" % request_json
+        try:
+            request_dict = json.loads(request_json)
+        except Exception as e:
+            print "Invalid Request."
+            queue_in.delete_message(request_message)
+            continue
+
+        # Insert the message into MessageQueue
+        request_dict['primary'] = True
+        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
+
+        # Publish for synchronization
+        request_dict['seq_num'] = seq
+        request_dict['primary'] = False
+        request_json = json.dumps(request_dict)
+        pubsub_manager.publish(request_json)
+        
+        # Delete the message
+        queue_in.delete_message(request_message)
+
+    print "Worker thread terminated"
+
+def process():
+    global exit_signal
+    global queue_out
+    global db_manager
+    global message_queue
+
+    while not exit_signal:
+        # Pop the message from MessageQueue
+        request_dict = message_queue.pop()
+        if request_dict is None:
+            continue
+
+        print "Processing request%s: %s" % (" (primary)" if request_dict['primary'] else "", request_dict)
+
+        # Perform the operation as specified in the message
+        response_json = db_manager.execute(request_dict)
+
+        # Insert the response in the output queue, in JSON representation.
+        # Only the primary database writes the result
+        if request_dict['primary'] == True:
+            response_message = boto.sqs.message.Message()
+            response_message.set_body(response_json)
+            queue_out.write(response_message)
+            # print "Response inserted into SQS-out: %s" % response_json
+
+    print "Process thread terminated"
+
 def main():
     '''
     Entry of the db instance.
     '''
+    global queue_in
+    global queue_out
+    global zk_client
+    global db_manager
+    global message_queue
+    global pubsub_manager
 
     # Parse the arguments
     parser = build_parser()
@@ -136,81 +198,33 @@ def main():
 
     # Setup the SQS-in and SQS-out queues. 
     conn = setup_sqs(QUEUE_IN_NAME, QUEUE_OUT_NAME)
+    queue_in = conn.create_queue(QUEUE_IN_NAME)
+    queue_out = conn.create_queue(QUEUE_OUT_NAME)
 
-    # Open connection to ZooKeeper and context for zmq
-    with kzcl(kazooclientlast.KazooClientLast(hosts=zkhost)) as kz, zmqcm(zmq.Context.instance()) as zmq_context:
+    # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
+    with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
+         PubSubManager(instance_name=instance_name, instances=instances, proxied_instances=proxied_instances, sub_to_name=sub_to_name, base_port=base_port) as pubsub_manager:
 
-        # Set up publish and subscribe sockets
-        pub_port, sub_ports = gen_ports.gen_ports(base_port, instances, proxied_instances, instance_name)
-        setup_pub_sub(zmq_context, sub_to_name, pub_port, sub_ports, instance_name)
+        setup_synchronization()
+        
+        message_queue = MessageQueue(zk_client.seq_num.last_set)
 
-        # Initialize sequence numbering by ZooKeeper
-        try:
-            kz.create(path=config.SEQUENCE_OBJECT, value="0", makepath=True)
-        except kazoo.exceptions.NodeExistsError as nee:
-            kz.set(config.SEQUENCE_OBJECT, "0") # Another instance has already created the node
-                                         # or it is left over from prior runs
+        worker_thread = threading.Thread(target=worker)
+        worker_thread.start()
 
-        # Wait for all DBs to be ready
-        barrier_path = config.APP_DIR + config.BARRIER_NAME
-        kz.ensure_path(barrier_path)
-        b = kz.create(barrier_path + '/' + instance_name, ephemeral=True)
-        while len(kz.get_children(barrier_path)) < instances_num:
-            time.sleep(1)
-        print "Past rendezvous"
+        subscribe_thread = threading.Thread(target=subscribe)
+        subscribe_thread.start()
+
+        process_thread = threading.Thread(target=process)
+        process_thread.start()
+
         print "%s is now running...\n" % instance_name
 
-        # Create the sequence counter.
-        seq_num = kz.Counter(config.SEQUENCE_OBJECT)
-
-        # Process requests from SQS-in
-        """
-        while True:
-            seq_num += 1
-            print "seq_num = %d" % seq_num.last_set
-            time.sleep(2)
-        """
-        while True:
-            # Get a message from the start point of the queue
-            queue_in = conn.get_queue(QUEUE_IN_NAME)
-            request_messages = queue_in.get_messages(num_messages=1, visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
-            if len(request_messages) == 0:
-                time.sleep(1)
-                continue
-
-            # Convert the message to a dictionary
-            request_message = request_messages[0]
-            request_json = request_message.get_body()
-            try:
-                request_dict = json.loads(request_json)
-            except Exception as e:
-                queue_in.delete_message(request_message)
-                continue
-
-            # Perform the operation as specified in the message
-            response_json = ''
-            request_path = request_dict['path']
-            request_query = request_dict['query']
-            if request_path == 'create':
-                response_json = db_manager.do_create(request_query['id'], request_query['name'], request_query['activities'])
-            elif request_path == 'delete':
-                response_json = db_manager.do_delete(request_query['id'], request_query['name'])
-            elif request_path == 'retrieve':
-                response_json = db_manager.do_retrieve(request_query['id'], request_query['name'])
-            elif request_path == 'add_activities':
-                response_json = db_manager.do_add_activities(request_query['id'], request_query['activities'])
-
-            # Delete the message on success
-            queue_in.delete_message(request_message)
-
-            # Put the response on the output queue, in JSON representation.
-            response_message = boto.sqs.message.Message()
-            response_message.set_body(response_json)
-            queue_out = conn.get_queue(QUEUE_OUT_NAME)
-            queue_out.write(response_message)
-            print "Response inserted into output queue."
-
-
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        while worker_thread.is_alive() or subscribe_thread.is_alive() or process_thread.is_alive():
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()

@@ -18,6 +18,23 @@ class DynamoDBManager():
         self.REGION = aws_region
         self.create_table()
 
+    def execute(self, request):
+        request_path = request['path']
+        request_query = request['query']
+        if request_path == 'create':
+            response_json = self.do_create(request_query.get('id',None), request_query.get('name',None), request_query.get('activities',[]))
+        elif request_path == 'delete':
+            response_json = self.do_delete(request_query.get('id',None), request_query.get('name',None))
+        elif request_path == 'retrieve':
+            response_json = self.do_retrieve(request_query.get('id',None), request_query.get('name',None))
+        elif request_path == 'add_activities':
+            response_json = self.do_add_activities(request_query.get('id',None), request_query.get('activities',[]))
+        else:
+            response_json = {'error':'invalid operation'}
+
+        return response_json
+
+
     def get_table(self):
         return Table(self.TABLE_NAME, connection=boto.dynamodb2.connect_to_region(self.REGION))
 

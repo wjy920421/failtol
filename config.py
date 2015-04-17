@@ -21,7 +21,7 @@ PORT = 8080
 MAX_SECONDS = 180
 
 # Instance naming
-BASE_INSTANCE_NAME = "DB"
+BASE_INSTANCE_NAME = "TEAM_LOADBALANCE"
 
 # Names for ZooKeeper hierarchy
 APP_DIR = "/" + BASE_INSTANCE_NAME
