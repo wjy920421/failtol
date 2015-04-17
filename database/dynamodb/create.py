@@ -18,7 +18,7 @@ def do_create(table, user_id, username, activities):
     data = {
         'id': user_id,
         'name': username,
-        'activities': activities,
+        'activities': list(set(activities)),
     }
 
     hasItem = table.has_item(id=user_id)
