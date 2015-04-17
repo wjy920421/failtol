@@ -16,6 +16,10 @@ DEFAULT_SUBSCRIBE_TO    = "localhost"
 DEFAULT_WRITE_CAPACITY  = 10
 DEFAULT_READ_CAPACITY   = 10
 
+# Additional constants
+PORT = 8080
+MAX_SECONDS = 180
+
 # Instance naming
 BASE_INSTANCE_NAME = "DB"
 
