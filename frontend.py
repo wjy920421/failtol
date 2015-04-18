@@ -22,6 +22,7 @@ import config
 
 import delete as delete_package
 import retrieve as retrieve_package
+import create as create_package
 
 app = Bottle()
 
@@ -46,34 +47,17 @@ def _response():
 Create REST API
 """
 @route('/create')
-def create():
-    
-    userID      = str(request.query.get("id"))
-    username    = str(request.query.get("name"))
-    activities  = str(request.query.get("activities"))
-    
+def create(): 
+    userID = request.query.get("id")
+    username = request.query.get("name")
+    activities = request.query.get("activities")
 
-    data = {}
-    data["type"] = 'person'
-    data["id"]   = userID
-
-    if not username:
-        data["name"] = username
-
-    if not activities:
-        data["activities"] = activities
-
-    request_json = {"data" : data}
-          
-
-    req = json.dumps(request_json)
-    m = Message()
-    m.set_body(req)
-
+    user_id = request.query.get('id')
+    username = request.query.get('name')
     my_queue = conn.get_queue(QUEUE_IN)
-    my_queue.write(m)
 
     response.status = 202
+    create_package.do_create(user_id, username, activities, response, my_queue)
     return _response()
 
 """
