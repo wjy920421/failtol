@@ -20,7 +20,7 @@ def do_create(accID, accName, activities, response, sqs):
     lstActivities = str(activities)
     
     data = {}
-    data["op"]   = 'retrieve'
+    data["op"]   = 'create'
     data["type"] = 'person'
     data["id"]   = id
 
