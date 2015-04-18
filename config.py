@@ -16,10 +16,11 @@ DEFAULT_SUBSCRIBE_TO    = "localhost"
 DEFAULT_WRITE_CAPACITY  = 10
 DEFAULT_READ_CAPACITY   = 10
 
-# Additional constants
+# Additional constants for frontend and backend
 PORT = 8080
 MAX_SECONDS = 180
-
+MAX_WAIT_S_BACK = 20 
+PORT_BACK = 8081
 
 # Instance naming
 BASE_INSTANCE_NAME = "TEAM_LOADBALANCE"

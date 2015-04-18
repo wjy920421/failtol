@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 '''
-  Back end server for Exercise 6, CMPT 474.
+  Back end server for final assignment, CMPT 474.
 '''
 
 # Library packages
@@ -13,21 +13,16 @@ import boto.sqs
 
 from bottle import route, run, request, response, default_app
 
-AWS_REGION = "us-west-2"
+import utils
+
 QUEUE_OUT = "ex6_out"
-MAX_WAIT_S = 20 # SQS sets max. of 20 s
-PORT = 8081
 
 try:
-    conn = boto.sqs.connect_to_region(AWS_REGION)
+    conn = boto.sqs.connect_to_region(config.AWS_REGION)
     if conn == None:
-        sys.stderr.write("Could not connect to AWS region '{0}'\n".format(AWS_REGION))
+        sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
         sys.exit(1)
 
-    '''
-      EXTEND:
-      Add code to open the output queue.
-    '''
     queue = conn.create_queue(QUEUE_OUT)
 
 except Exception as e:
@@ -47,23 +42,18 @@ def retrieve_message():
 
 @route('/')
 def app():
-    '''
-      EXTEND:
-      Add code to read a message from the output queue into `m`.
-      Put the message body in `resp`.
-    '''
     message_json = retrieve_message()
 
     if message_json is None:
-        time.sleep(MAX_WAIT_S)
+        time.sleep(config.MAX_WAIT_S_BACK)
         message_json = retrieve_message()
         if message_json is None:
             response.status = 204 # "No content"
-            return 'Queue empty\n'
+            return ''
         else:
             return message_json
     else:
         return message_json
 
 app = default_app()
-run(app, host="localhost", port=PORT)
+run(app, host=config.DEFAULT_SUBSCRIBE_TO , port=config.PORT_BACK)
