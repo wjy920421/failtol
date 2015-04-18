@@ -58,13 +58,13 @@ Create REST API
 """
 @route('/create')
 def create(): 
-    userID      = str(request.query.get("id"))
+    user_id      = str(request.query.get("id"))
     username    = str(request.query.get("name"))
     activities  = str(request.query.get("activities"))
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
-    validId   = ID_PATTERN.match(userID)
+    validId   = ID_PATTERN.match(user_id)
     validName = NAME_PATTERN.match(username)
     validActs = ACT_PATTERN.match(activities)
 
