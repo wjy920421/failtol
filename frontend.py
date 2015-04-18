@@ -27,7 +27,7 @@ import create as create_package
 
 app = Bottle()
 
-QUEUE_IN = "djflipout"#sys.argv[1] None
+QUEUE_IN = sys.argv[1]
 
 QUERY_PATTERN_ID = "[id=0-9]+"
 ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
