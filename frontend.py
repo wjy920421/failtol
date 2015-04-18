@@ -24,6 +24,7 @@ import config
 import delete as delete_package
 import retrieve as retrieve_package
 import create as create_package
+import add_activities as add_activities_package
 
 app = Bottle()
 
@@ -117,6 +118,27 @@ def delete():
 
     response.status = 202
     delete_package.do_delete(user_id, username, response, my_queue)
+    return _response()
+
+"""
+Add_activities REST API
+"""
+@route('/add_activities')
+def add_activities():
+    user_id      = str(request.query.get("id"))
+    activities  = str(request.query.get("activities"))
+    
+    my_queue    = conn.get_queue(QUEUE_IN)
+
+    validId   = ID_PATTERN.match(user_id)
+    validActs = ACT_PATTERN.match(activities)
+
+    if not (validId or validActs):
+        response.status = 400
+        abort(400,"Query did not match the pattern.")
+
+    response.status = 202
+    add_activities_package.do_add_activities(user_id, activities, response, my_queue)
     return _response()
 
 
