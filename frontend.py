@@ -16,14 +16,17 @@ from boto.sqs.message import Message
 
 from bottle import Bottle
 from bottle import route, run, request, response, abort, default_app
-
-
-from bottle import run, error, route
+from bottle import error, route
 
 import config
 
+import delete as delete_package
+import retrieve as retrieve_package
 
-QUEUE_IN = "djflipout"#sys.argv[1]
+app = Bottle()
+
+QUEUE_IN = "djflipout"#sys.argv[1] None
+  
 
 conn = boto.sqs.connect_to_region(config.AWS_REGION)
 
@@ -40,13 +43,15 @@ def _response():
         }
 
 """
-retrieve REST API
+Create REST API
 """
-@route('/retrieve')
-def retrieve():
-    userID = request.query.get("id")
-    username = request.query.get("name")
-    activities = request.query.get("activities")
+@route('/create')
+def create():
+    
+    userID      = str(request.query.get("id"))
+    username    = str(request.query.get("name"))
+    activities  = str(request.query.get("activities"))
+    
 
     data = {}
     data["type"] = 'person'
@@ -72,35 +77,35 @@ def retrieve():
     return _response()
 
 """
+Retrieve REST API
+"""
+@route('/retrieve')
+def retrieve():
+    userID = request.query.get("id")
+    username = request.query.get("name")
+    activities = request.query.get("activities")
+
+    user_id = request.query.get('id')
+    username = request.query.get('name')
+    my_queue = conn.get_queue(QUEUE_IN)
+
+    response.status = 202
+    retrieve_package.do_retrieve(user_id, username, activities, response, my_queue)
+    return _response()
+
+"""
 Delete REST API
 """
 @route('/delete')
 def delete():
-    userID = request.query.get("id")
-    username = request.query.get("name")
-    
-    data = {}
-    data["type"] = 'person'
-    data["id"]   = userID
-
-    if not username:
-        data["name"] = username
-
-    request_json = {"data" : data}
-
-    req = json.dumps(request_json)
-    m = Message()
-    m.set_body(req)
-
+    user_id = request.query.get('id')
+    username = request.query.get('name')
     my_queue = conn.get_queue(QUEUE_IN)
-    my_queue.write(m)
 
     response.status = 202
+    delete_package.do_delete(user_id, username, response, my_queue)
     return _response()
 
-"""
-Create SQS connection
-"""
 try:
     conn = boto.sqs.connect_to_region(config.AWS_REGION)
     if conn == None:
