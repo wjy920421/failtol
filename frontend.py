@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import os.path
+import re
 
 import boto.sqs
 import boto.sqs.message
@@ -16,14 +17,27 @@ from boto.sqs.message import Message
 
 from bottle import Bottle
 from bottle import route, run, request, response, abort, default_app
-
-
-from bottle import run, error, route
+from bottle import error, route
 
 import config
 
+import delete as delete_package
+import retrieve as retrieve_package
+import create as create_package
+import add_activities as add_activities_package
 
-QUEUE_IN = "djflipout"#sys.argv[1]
+app = Bottle()
+
+QUEUE_IN = sys.argv[1]
+
+QUERY_PATTERN_ID = "^[0-9]*$"#"([id=0-9])+[^a-zA-z]"
+ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
+
+QUERY_PATTERN_NAME = "^(name=[a-zA-Z]+(_[a-zA-Z]+)*)$"
+NAME_PATTERN       = re.compile(QUERY_PATTERN_NAME)
+
+QUERY_PATTERN_ACTIVITIES = "^(id=[0-9]+)(&name=[a-zA-Z]+(_[a-zA-Z]+)*)(&activities=(([a-zA-Z]+([-_][a-zA-Z]+)*)(,([a-zA-Z]+([-_][a-zA-Z]+)*))*)*)?$"
+ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
 
 conn = boto.sqs.connect_to_region(config.AWS_REGION)
 
@@ -40,35 +54,49 @@ def _response():
         }
 
 """
-retrieve REST API
+Create REST API
+"""
+@route('/create')
+def create(): 
+    user_id      = str(request.query.get("id"))
+    username    = str(request.query.get("name"))
+    activities  = str(request.query.get("activities"))
+    
+    my_queue    = conn.get_queue(QUEUE_IN)
+
+    validId   = ID_PATTERN.match(user_id)
+    validName = NAME_PATTERN.match(username)
+    validActs = ACT_PATTERN.match(activities)
+
+    if not (validId or validName or validActs):
+        response.status = 400
+        abort(400,"Query did not match the pattern.")
+
+    response.status = 202
+    create_package.do_create(user_id, username, activities, response, my_queue)
+    return _response()
+
+"""
+Retrieve REST API
 """
 @route('/retrieve')
 def retrieve():
-    userID = request.query.get("id")
-    username = request.query.get("name")
-    activities = request.query.get("activities")
+    user_id     = str(request.query.get('id'))
+    username    = str(request.query.get('name'))
+    activities  = str(request.query.get("activities"))
+    
+    my_queue    = conn.get_queue(QUEUE_IN)
+    
+    validId   = ID_PATTERN.match(user_id)
+    validName = NAME_PATTERN.match(username)
+    validActs = ACT_PATTERN.match(activities)
 
-    data = {}
-    data["type"] = 'person'
-    data["id"]   = userID
-
-    if not username:
-        data["name"] = username
-
-    if not activities:
-        data["activities"] = activities
-
-    request_json = {"data" : data}
-          
-
-    req = json.dumps(request_json)
-    m = Message()
-    m.set_body(req)
-
-    my_queue = conn.get_queue(QUEUE_IN)
-    my_queue.write(m)
+    if not (validId or validName or validActs):
+        response.status = 400
+        abort(400,"Query did not match the pattern.")
 
     response.status = 202
+    retrieve_package.do_retrieve(user_id, username, activities, response, my_queue)
     return _response()
 
 """
@@ -76,30 +104,46 @@ Delete REST API
 """
 @route('/delete')
 def delete():
-    userID = request.query.get("id")
-    username = request.query.get("name")
+    user_id = str(request.query.get('id'))
+    username = str(request.query.get('name'))
     
-    data = {}
-    data["type"] = 'person'
-    data["id"]   = userID
-
-    if not username:
-        data["name"] = username
-
-    request_json = {"data" : data}
-
-    req = json.dumps(request_json)
-    m = Message()
-    m.set_body(req)
-
     my_queue = conn.get_queue(QUEUE_IN)
-    my_queue.write(m)
+
+    validId   = ID_PATTERN.match(user_id)
+    validName = NAME_PATTERN.match(username)
+
+    if not (validId or validName):
+        response.status = 400
+        abort(400,"Query did not match the pattern.")
 
     response.status = 202
+    delete_package.do_delete(user_id, username, response, my_queue)
     return _response()
 
 """
-Create SQS connection
+Add_activities REST API
+"""
+@route('/add_activities')
+def add_activities():
+    user_id      = str(request.query.get("id"))
+    activities  = str(request.query.get("activities"))
+    
+    my_queue    = conn.get_queue(QUEUE_IN)
+
+    validId   = ID_PATTERN.match(user_id)
+    validActs = ACT_PATTERN.match(activities)
+
+    if not (validId or validActs):
+        response.status = 400
+        abort(400,"Query did not match the pattern.")
+
+    response.status = 202
+    add_activities_package.do_add_activities(user_id, activities, response, my_queue)
+    return _response()
+
+
+"""
+SQS Connection
 """
 try:
     conn = boto.sqs.connect_to_region(config.AWS_REGION)
@@ -114,6 +158,5 @@ except Exception as e:
     sys.stderr.write(str(e))
     sys.exit(1)
 
-
 app = default_app()
-run(app, host="localhost", port=config.PORT)
+run(app, host=config.DEFAULT_SUBSCRIBE_TO, port=config.PORT)
