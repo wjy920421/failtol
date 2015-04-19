@@ -23,11 +23,8 @@ IFS=',' read -ra array <<<"$INSTANCES"
 
 for i in "${array[@]}"; do
 	#echo $i
-	python db.py $ZOOKEEPER_HOST $BASE_PORT $INSTANCES $PROXIED_INSTANCES $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP
+	python db.py $ZOOKEEPER_HOST $i $BASE_PORT $INSTANCES $PROXIED_INSTANCES $BASE_PORT “localhost” $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP
 done
-
-#python db.py $ZOOKEEPER_HOST "DB1" $INSTANCES $PROXIED_INSTANCES $BASE_PORT "sub_to" $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP
-
 
 python frontend.py $SQS_IN
 python backend.py $SQS_OUT
