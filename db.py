@@ -52,8 +52,8 @@ def setup_sqs(queue_in_name, queue_out_name):
         if conn is None:
             sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
             sys.exit(1)
-        queue_in = conn.create_queue(queue_in_name, config.MAX_SECONDS)
-        queue_out = conn.create_queue(queue_out_name, config.MAX_SECONDS)
+        queue_in = conn.create_queue(queue_in_name)
+        queue_out = conn.create_queue(queue_out_name)
 
         return conn
 
@@ -195,8 +195,8 @@ def main():
 
     # Setup the SQS-in and SQS-out queues. 
     conn = setup_sqs(QUEUE_IN_NAME, QUEUE_OUT_NAME)
-    queue_in = conn.create_queue(QUEUE_IN_NAME, config.MAX_SECONDS)
-    queue_out = conn.create_queue(QUEUE_OUT_NAME, config.MAX_SECONDS)
+    queue_in = conn.create_queue(QUEUE_IN_NAME)
+    queue_out = conn.create_queue(QUEUE_OUT_NAME)
 
     # Open connection to ZooKeeper, and Setup Publish/Subscribe manager
     with ZookeeperClient(zkhost=zkhost, instance_name=instance_name, instances_num=instances_num, seq_obj_path=config.SEQUENCE_OBJECT, barrier_path=config.APP_DIR + config.BARRIER_NAME) as zk_client, \
