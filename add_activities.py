@@ -17,16 +17,17 @@ def do_add_activities(accID, activities, response, sqs):
     lstActivities = str(activities)
     
     data = {}
-    data["op"]   = 'add_activities'
-    data["type"] = 'person'
-    data["id"]   = id
+    data["path"]   = 'create'
+    data["query"] = {}
 
+    if not id:
+        data["query"]["id"]   = id
+        
     if not activities:
         data["activities"] = activities
 
-    request_json = {"data" : data}
 
-    req = json.dumps(request_json)
+    req = json.dumps(data)
     m = Message()
     m.set_body(req)
 

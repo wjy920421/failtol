@@ -30,10 +30,10 @@ app = Bottle()
 
 QUEUE_IN = sys.argv[1]
 
-QUERY_PATTERN_ID = "^[0-9]*$"#"([id=0-9])+[^a-zA-z]"
+QUERY_PATTERN_ID = "^[0-9]*$" 
 ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
 
-QUERY_PATTERN_NAME = "^(name=[a-zA-Z]+(_[a-zA-Z]+)*)$"
+QUERY_PATTERN_NAME = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
 NAME_PATTERN       = re.compile(QUERY_PATTERN_NAME)
 
 QUERY_PATTERN_ACTIVITIES = "^(id=[0-9]+)(&name=[a-zA-Z]+(_[a-zA-Z]+)*)(&activities=(([a-zA-Z]+([-_][a-zA-Z]+)*)(,([a-zA-Z]+([-_][a-zA-Z]+)*))*)*)?$"
@@ -83,20 +83,25 @@ Retrieve REST API
 def retrieve():
     user_id     = str(request.query.get('id'))
     username    = str(request.query.get('name'))
-    activities  = str(request.query.get("activities"))
     
     my_queue    = conn.get_queue(QUEUE_IN)
-    
-    validId   = ID_PATTERN.match(user_id)
-    validName = NAME_PATTERN.match(username)
-    validActs = ACT_PATTERN.match(activities)
 
-    if not (validId or validName or validActs):
+    if (user_id):
+        validId = ID_PATTERN.match(user_id)
+    else:
+        validId = False
+
+    if (username):
+        validName = NAME_PATTERN.match(username)
+    else:
+        validName = False
+
+    if not (validId or validName):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
     response.status = 202
-    retrieve_package.do_retrieve(user_id, username, activities, response, my_queue)
+    retrieve_package.do_retrieve(user_id, username, response, my_queue)
     return _response()
 
 """
@@ -104,13 +109,20 @@ Delete REST API
 """
 @route('/delete')
 def delete():
-    user_id = str(request.query.get('id'))
-    username = str(request.query.get('name'))
+    user_id     = request.query.get('id')
+    username    = request.query.get('name')
     
-    my_queue = conn.get_queue(QUEUE_IN)
+    my_queue    = conn.get_queue(QUEUE_IN)
 
-    validId   = ID_PATTERN.match(user_id)
-    validName = NAME_PATTERN.match(username)
+    if (user_id):
+        validId = ID_PATTERN.match(user_id)
+    else:
+        validId = False
+
+    if (username):
+        validName = NAME_PATTERN.match(username)
+    else:
+        validName = False
 
     if not (validId or validName):
         response.status = 400
