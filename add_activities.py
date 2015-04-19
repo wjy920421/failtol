@@ -14,7 +14,9 @@ from boto.sqs.message import Message
 def do_add_activities(accID, activities, response, sqs):
 
     id            = str(accID)
-    lstActivities = str(activities)
+    activities_str = str(activities)
+    
+    activitiesLst = [] if activities_str is None else [act for act in activities_str.split(',') if act != '']
     
     data = {}
     data["path"]   = 'create'
@@ -23,8 +25,8 @@ def do_add_activities(accID, activities, response, sqs):
     if not id:
         data["query"]["id"]   = id
         
-    if not activities:
-        data["activities"] = activities
+    if not activities_str:
+        data["activities"] = activitiesLst
 
 
     req = json.dumps(data)
