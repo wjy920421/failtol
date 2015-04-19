@@ -22,10 +22,10 @@ def do_add_activities(accID, activities, response, sqs):
     data["path"]   = 'create'
     data["query"] = {}
 
-    if not id:
+    if id:
         data["query"]["id"]   = id
         
-    if not activities_str:
+    if activities_str:
         data["activities"] = activitiesLst
 
 
