@@ -36,7 +36,7 @@ ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
 QUERY_PATTERN_NAME = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
 NAME_PATTERN       = re.compile(QUERY_PATTERN_NAME)
 
-QUERY_PATTERN_ACTIVITIES = "^(id=[0-9]+)(&name=[a-zA-Z]+(_[a-zA-Z]+)*)(&activities=(([a-zA-Z]+([-_][a-zA-Z]+)*)(,([a-zA-Z]+([-_][a-zA-Z]+)*))*)*)?$"
+QUERY_PATTERN_ACTIVITIES = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
 ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
 
 conn = boto.sqs.connect_to_region(config.AWS_REGION)
@@ -58,22 +58,33 @@ Create REST API
 """
 @route('/create')
 def create(): 
-    user_id      = str(request.query.get("id"))
-    username    = str(request.query.get("name"))
-    activities  = str(request.query.get("activities"))
+    user_id        = request.query.get('id')
+    username       = request.query.get('name')
+    userActivities = request.query.get('activities')
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
-    validId   = ID_PATTERN.match(user_id)
-    validName = NAME_PATTERN.match(username)
-    validActs = ACT_PATTERN.match(activities)
+    if (user_id):
+        validId = ID_PATTERN.match(user_id)
+    else:
+        validId = False
+
+    if (username):
+        validName = NAME_PATTERN.match(username)
+    else:
+        validName = False
+
+    if (userActivities):
+        validActs = ACT_PATTERN.match(userActivities)
+    else:
+        validActs = False
 
     if not (validId or validName or validActs):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
     response.status = 202
-    create_package.do_create(user_id, username, activities, response, my_queue)
+    create_package.do_create(user_id, username, userActivities, response, my_queue)
     return _response()
 
 """
@@ -81,8 +92,8 @@ Retrieve REST API
 """
 @route('/retrieve')
 def retrieve():
-    user_id     = str(request.query.get('id'))
-    username    = str(request.query.get('name'))
+    user_id     = request.query.get('id')
+    username    = request.query.get('name')
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
@@ -137,20 +148,28 @@ Add_activities REST API
 """
 @route('/add_activities')
 def add_activities():
-    user_id      = str(request.query.get("id"))
-    activities  = str(request.query.get("activities"))
+    user_id        = request.query.get('id')
+    userActivities = request.query.get('activities')
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
-    validId   = ID_PATTERN.match(user_id)
-    validActs = ACT_PATTERN.match(activities)
+    if (user_id):
+        validId = ID_PATTERN.match(user_id)
+    else:
+        validId = False
+
+    if (userActivities):
+        validActs = ACT_PATTERN.match(userActivities)
+    else:
+        validActs = False
+        
 
     if not (validId or validActs):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
     response.status = 202
-    add_activities_package.do_add_activities(user_id, activities, response, my_queue)
+    add_activities_package.do_add_activities(user_id, userActivities, response, my_queue)
     return _response()
 
 
