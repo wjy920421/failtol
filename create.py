@@ -17,7 +17,19 @@ def do_create(accID, accName, activities, response, sqs):
 
     id            = str(accID)
     username      = str(accName)
-    lstActivities = str(activities)
+    activities_str = str(activities)
+    
+    activitiesLst = [] if activities_str is None else [act for act in activities_str.split(',') if act != '']
+    
+    data = {}
+    data["path"]   = 'create'
+    data["query"] = {}
+
+    if not id:
+        data["query"]["id"]   = id
+        
+    if not activities_str:
+        data["activities"] = activitiesLst
     
     data = {}
     data["path"]   = 'create'
@@ -30,7 +42,7 @@ def do_create(accID, accName, activities, response, sqs):
         data["query"]["name"] = username
 
     if not activities:
-        data["query"]["activities"] = activities
+        data["query"]["activities"] = activitiesLst
 
 
     req = json.dumps(data)
