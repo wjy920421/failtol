@@ -31,7 +31,7 @@ try:
       Add code to open the output queue.
     '''
     #conn.create_queue(QUEUE_OUT)
-    out_q = conn.get_queue(QUEUE_OUT)
+    out_q = conn.create_queue(QUEUE_OUT, config.MAX_SECONDS)
 
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
