@@ -10,21 +10,23 @@ PROXIED_INSTANCES=$7
 BASE_PORT=$8
 
 
-echo "Zookeepr host: $ZOOKEEPER_HOST "
-echo "SQS_IN 	   : $SQS_IN "
-echo "SQS_OUT 	   : $SQS_OUT "
-echo "WRITE_CAP	   : $WRITE_CAP "
-echo "READ_CAP	   : $READ_CAP "
-echo "INSTANCE	   : $INSTANCES "
-echo "DB Instances : $PROXIED_INSTANCES "
-echo "base port add: $BASE_PORT "
+echo "Zookeepr Host     : $ZOOKEEPER_HOST "
+echo "SQS_IN            : $SQS_IN "
+echo "SQS_OUT           : $SQS_OUT "
+echo "WRITE_CAP         : $WRITE_CAP "
+echo "READ_CAP          : $READ_CAP "
+echo "Instances         : $INSTANCES "
+echo "Proxied Instances : $PROXIED_INSTANCES "
+echo "Base Port         : $BASE_PORT "
 
 IFS=',' read -ra array <<<"$INSTANCES"
 
-for i in "${array[@]}"; do
-	#echo $i
-	python db.py $ZOOKEEPER_HOST $i $BASE_PORT $INSTANCES $PROXIED_INSTANCES $BASE_PORT “localhost” $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP
+for name in "${array[@]}"; do
+    echo "instance name: $name"
+    echo "instances: $INSTANCES"
+    echo "proxied instances: $PROXIED_INSTANCES"
+    python db.py $ZOOKEEPER_HOST $name "$INSTANCES" "$PROXIED_INSTANCES" $BASE_PORT "localhost" $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP &
 done
 
-python frontend.py $SQS_IN
-python backend.py $SQS_OUT
+python frontend.py $SQS_IN &
+python backend.py $SQS_OUT &

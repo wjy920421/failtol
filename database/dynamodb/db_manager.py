@@ -16,6 +16,8 @@ class DynamoDBManager():
     def __init__(self, table_name, aws_region, write_cap=10, read_cap=10):
         self.TABLE_NAME = table_name
         self.REGION = aws_region
+        self.WRITE_CAP = write_cap
+        self.READ_CAP = read_cap
         self.create_table()
 
     def execute(self, request):
@@ -36,11 +38,21 @@ class DynamoDBManager():
 
 
     def get_table(self):
-        return Table(self.TABLE_NAME, connection=boto.dynamodb2.connect_to_region(self.REGION))
+        return Table(
+                self.TABLE_NAME,
+                schema=[HashKey('id')],
+                connection=boto.dynamodb2.connect_to_region(self.REGION),
+                throughput={'read':self.READ_CAP, 'write':self.WRITE_CAP}
+            )
 
     def create_table(self):
         try:
-            table = Table.create(self.TABLE_NAME, schema=[HashKey('id')], connection=boto.dynamodb2.connect_to_region(self.REGION))
+            table = Table.create(
+                    self.TABLE_NAME,
+                    schema=[HashKey('id')],
+                    connection=boto.dynamodb2.connect_to_region(self.REGION),
+                    throughput={'read':self.READ_CAP, 'write':self.WRITE_CAP}
+                )
             return table
         except Exception, e:
             return self.get_table()
