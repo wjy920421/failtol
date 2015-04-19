@@ -26,6 +26,8 @@ import retrieve as retrieve_package
 import create as create_package
 import add_activities as add_activities_package
 
+import atexit
+
 app = Bottle()
 
 QUEUE_IN = sys.argv[1]
@@ -151,12 +153,15 @@ try:
         sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
         sys.exit(1)
 
-    conn.create_queue(QUEUE_IN, config.MAX_SECONDS)
+    in_q = conn.create_queue(QUEUE_IN, config.MAX_SECONDS)
     
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
     sys.stderr.write(str(e))
     sys.exit(1)
+
+if config.DELETE_IN_QUEUE_ON_EXIT:
+    atexit.register(conn.delete_queue, in_q)
 
 
 app = default_app()
