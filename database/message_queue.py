@@ -37,6 +37,12 @@ class MessageQueue:
 
         return result[1]
 
+    def set_last_seq(self, last_seq):
+        self._cv.acquire()
+        self._last_seq = last_seq
+        self._cv.notify_all()
+        self._cv.release()
+
     def notify_all(self):
         self._cv.acquire()
         self._cv.notify_all()
