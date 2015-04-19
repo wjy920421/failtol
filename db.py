@@ -22,9 +22,6 @@ from database.message_queue import MessageQueue
 
 
 
-MAX_WAIT_S = 20 # SQS sets max. of 20 s
-DEFAULT_VIS_TIMEOUT_S = 60
-
 def signal_handler(signal, frame):
     print "EXIT_SIGNAL: shutting down all threads..."
     global exit_signal
@@ -79,7 +76,7 @@ def subscribe():
     while not exit_signal:
         msg = pubsub_manager.subscribe()
         if msg is None:
-            time.sleep(1)
+            time.sleep(config.DEFAULT_DB_WAIT_S)
             continue
 
         # print "Subscribe: %s" % msg
@@ -102,7 +99,7 @@ def worker():
         # Get a message from the start point of the queue
         request_message = queue_in.read(visibility_timeout=config.DEFAULT_VISIBILITY_TIMEOUT)
         if request_message is None:
-            time.sleep(1)
+            time.sleep(config.DEFAULT_DB_WAIT_S)
             continue
 
         # Request a sequence number from zookeeper

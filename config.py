@@ -2,6 +2,7 @@
 AWS_REGION = "us-west-2"
 
 # DynamoDB
+DEFAULT_DB_WAIT_S = 0.1
 BASE_DYNAMODB_NAME = 'Team-LoadBalance-'
 DELETE_DYNAMODB_ON_EXIT = True
 
