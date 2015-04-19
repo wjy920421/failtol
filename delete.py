@@ -21,10 +21,10 @@ def do_delete(accID, accName, response, sqs):
     data["path"]   = 'create'
     data["query"] = {}
 
-    if not id:
+    if id:
         data["query"]["id"]   = id
 
-    if not username:
+    if username:
         data["name"] = username
 
 

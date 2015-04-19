@@ -25,23 +25,23 @@ def do_create(accID, accName, activities, response, sqs):
     data["path"]   = 'create'
     data["query"] = {}
 
-    if not id:
+    if id:
         data["query"]["id"]   = id
         
-    if not activities_str:
+    if activities_str:
         data["activities"] = activitiesLst
     
     data = {}
     data["path"]   = 'create'
     data["query"] = {}
 
-    if not id:
+    if id:
         data["query"]["id"]   = id
         
-    if not username:
+    if username:
         data["query"]["name"] = username
 
-    if not activities:
+    if activities:
         data["query"]["activities"] = activitiesLst
 
 
