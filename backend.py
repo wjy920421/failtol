@@ -6,6 +6,7 @@
 
 # Library packages
 import json
+import sys
 
 # Installed packages
 import boto.sqs
@@ -14,7 +15,7 @@ from bottle import route, run, request, response, default_app
 
 import config
 
-QUEUE_OUT = "ex6_out"
+QUEUE_OUT = sys.argv[1]
 MAX_WAIT_S = 20 # SQS sets max. of 20 s
 
 
@@ -28,7 +29,8 @@ try:
       EXTEND:
       Add code to open the output queue.
     '''
-    conn.create_queue(QUEUE_OUT)
+    #conn.create_queue(QUEUE_OUT)
+    out_q = conn.get_queue(QUEUE_OUT)
 
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
@@ -42,10 +44,8 @@ def app():
       Add code to read a message from the output queue into `m`.
       Put the message body in `resp`.
     '''
-    q1 = conn.get_queue(QUEUE_OUT)
-    m = q1.get_messages()
-    m_read = m[0]
-    m_read2 = m_read.get_body()
+    print("Reading from output queue...")
+    m = out_q.read(None, MAX_WAIT_S)
 
 
     #m = {'id': 0, 'f': 10, 's': 10, 'actual_s': 5}
@@ -53,8 +53,8 @@ def app():
         response.status = 204 # "No content"
         return ''
     else:
-      q1.delete_message(m_read)
-      resp = json.loads(m_read2)
+      resp = m.get_body() + '\n'
+      out_q.delete_message(m)
       #resp = {'id': 0, 'f': 10, 's': 10, 'actual_s': 5}
       return resp
 
