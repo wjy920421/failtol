@@ -7,7 +7,9 @@ Get item by id
 """
 
 def do_retrieve(table, userID, userName):
-            
+
+    status_code = 200
+
     users = table
 
     #Check if the items exists in DB
@@ -49,6 +51,7 @@ def do_retrieve(table, userID, userName):
             'name'       : data['name'],
             'activities' : lstActivities
             }}
+        status_code = 200
         
     elif(userName is not None and (idExist or nullUserID)):
         req ={'errors':[{
@@ -56,7 +59,8 @@ def do_retrieve(table, userID, userName):
                 'name':userName
                 }
             }]
-        }        
+        }
+        status_code = 404
 
     else:
         req ={'errors':[{
@@ -65,6 +69,10 @@ def do_retrieve(table, userID, userName):
                 }
             }]
         }
+        status_code = 404
+
+    req = {'HTTP_response':req, 'HTTP_status':status_code}
 
     return json.dumps(req)
-    
+
+

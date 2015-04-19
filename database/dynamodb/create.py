@@ -31,12 +31,15 @@ def do_create(table, user_id, username, activities):
             if activities != [] and user['activities'] is not None and set(activities) == set(user['activities']):
                 sameItem = True
 
+    status_code = 201
+
     if hasItem == False or sameItem == True:
         try:
             table.put_item(data=data)
         except Exception, e:
             pass
-            
+        
+
         
         response_dict = {
             'data': {
@@ -47,10 +50,8 @@ def do_create(table, user_id, username, activities):
                 }
             }
         }
-        
-        response_json = json.dumps(response_dict)
+        status_code = 201
 
-        return response_json
     else:
         user = table.get_item(id=user_id)
         name1 = user['name']
@@ -70,6 +71,9 @@ def do_create(table, user_id, username, activities):
                 }
             }]
         }
+        status_code = 400
+
+    response_dict = {'HTTP_response':response_dict, 'HTTP_status':status_code}
         
     response_json = json.dumps(response_dict)
 
