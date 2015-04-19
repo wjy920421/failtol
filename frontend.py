@@ -182,7 +182,7 @@ try:
         sys.stderr.write("Could not connect to AWS region '{0}'\n".format(config.AWS_REGION))
         sys.exit(1)
 
-    conn.create_queue(QUEUE_IN, config.MAX_SECONDS)
+    conn.create_queue(QUEUE_IN)
     
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
