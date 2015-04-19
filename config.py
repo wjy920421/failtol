@@ -4,10 +4,10 @@ AWS_REGION = "us-west-2"
 # DynamoDB
 DEFAULT_DB_WAIT_S = 0.1
 BASE_DYNAMODB_NAME = 'Team-LoadBalance-'
-DELETE_DYNAMODB_ON_EXIT = True
+DELETE_DYNAMODB_ON_EXIT = False
 
 # Parameters for DB
-DEFAULT_VISIBILITY_TIMEOUT = 1
+DEFAULT_VISIBILITY_TIMEOUT = 20
 
 # Default arguments of DB instance
 DEFAULT_SQS_IN  = "TEAM_LOADBALANCE_IN"
@@ -20,7 +20,7 @@ DEFAULT_READ_CAPACITY   = 10
 # Additional constants for frontend and backend
 PORT = 8080
 MAX_SECONDS = 180
-MAX_WAIT_S_BACK = 20 
+MAX_WAIT_S_BACK = 2
 PORT_BACK = 8081
 
 # Instance naming

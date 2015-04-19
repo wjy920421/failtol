@@ -17,8 +17,6 @@ import config
 
 QUEUE_OUT = sys.argv[1]
 VISIBILITY_TIMEOUT_S = 20
-MAX_WAIT_S = 20 # SQS sets max. of 20 s
-
 
 try:
     conn = boto.sqs.connect_to_region(config.AWS_REGION)
@@ -46,7 +44,7 @@ def app():
       Put the message body in `resp`.
     '''
     print("Reading from output queue...")
-    msg = out_q.read(VISIBILITY_TIMEOUT_S, MAX_WAIT_S)
+    msg = out_q.read(VISIBILITY_TIMEOUT_S, config.MAX_WAIT_S_BACK)
 
 
     if msg == None:
