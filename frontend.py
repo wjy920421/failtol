@@ -30,7 +30,7 @@ app = Bottle()
 
 QUEUE_IN = sys.argv[1]
 
-QUERY_PATTERN_ID = "([id=0-9])+[^a-zA-z]"
+QUERY_PATTERN_ID = "^[0-9]*$"#"([id=0-9])+[^a-zA-z]"
 ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
 
 QUERY_PATTERN_NAME = "^(name=[a-zA-Z]+(_[a-zA-Z]+)*)$"
