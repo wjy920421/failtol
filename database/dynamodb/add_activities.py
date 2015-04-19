@@ -13,6 +13,7 @@ def do_add_activities(table, user_id, add_activities):
     '''
       Basic server that returns the following JSON response
     '''
+    status_code = 200
 
     hasItem = table.has_item(id=user_id)
     if (hasItem):
@@ -42,6 +43,7 @@ def do_add_activities(table, user_id, add_activities):
                         'added:' : actual_added,
                     }
                 }
+                status_code = 200
                 # finish adding activites and break out from the while loop
                 break
             except ConditionalCheckFailedException:
@@ -56,7 +58,9 @@ def do_add_activities(table, user_id, add_activities):
                     'id': user_id
                 }
             }]
-        } 
-    
+        }
+        status_code = 404
+
+    request_json = {'HTTP_response':request_json, 'HTTP_status':status_code}
     req = json.dumps(request_json)
     return req

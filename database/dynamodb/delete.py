@@ -16,7 +16,7 @@ def do_delete(table, accID, accName):
                 accID = item['id']
                 break
 
-
+    status_code = 200
 
     if(accExist): #looking at id first 
         data = table.get_item(id=accID)
@@ -31,6 +31,7 @@ def do_delete(table, accID, accName):
                     'id'         : data['id'],
                     'name'       : data['name'],          
                     }}
+                    status_code = 200
 
                 else:
                     req ={'errors':[{
@@ -38,13 +39,15 @@ def do_delete(table, accID, accName):
                     'id':accID
                         }
                     }]}
+                    status_code = 404
 
             else:
                 req ={'errors':[{
                 'not_found':{
                 'name':accName
                     }
-                }]} 
+                }]}
+                status_code = 404
         else: #no name was provided so delete by id
             deleteSuceeded = table.delete_item(id=accID) #boolean value, delete by ID and name
 
@@ -54,7 +57,7 @@ def do_delete(table, accID, accName):
                 'id'         : data['id'],
                 'name'       : data['name'],
                 }}
-
+                status_code = 200
             else:
                 req ={'errors':[{
                     'not_found':{
@@ -62,6 +65,7 @@ def do_delete(table, accID, accName):
                     }
                 }]
                 }
+                status_code = 404
     else:
         if nullAccID:
             req ={'errors':[{
@@ -70,6 +74,7 @@ def do_delete(table, accID, accName):
                     }
                 }]
             }
+            status_code = 404
         else:
             req ={
                 'errors':[{
@@ -78,9 +83,9 @@ def do_delete(table, accID, accName):
                     }
                 }]
             }
+            status_code = 404
 
-
-
+    req = {'HTTP_response':req, 'HTTP_status':status_code}
 
     return json.dumps(req)
     
