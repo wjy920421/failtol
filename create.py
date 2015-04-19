@@ -20,19 +20,20 @@ def do_create(accID, accName, activities, response, sqs):
     lstActivities = str(activities)
     
     data = {}
-    data["op"]   = 'create'
-    data["type"] = 'person'
-    data["id"]   = id
+    data["path"]   = 'create'
+    data["query"] = {}
 
+    if not id:
+        data["query"]["id"]   = id
+        
     if not username:
-        data["name"] = username
+        data["query"]["name"] = username
 
     if not activities:
-        data["activities"] = activities
+        data["query"]["activities"] = activities
 
-    request_json = {"data" : data}
 
-    req = json.dumps(request_json)
+    req = json.dumps(data)
     m = Message()
     m.set_body(req)
 

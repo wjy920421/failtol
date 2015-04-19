@@ -18,16 +18,17 @@ def do_delete(accID, accName, response, sqs):
     username = str(accName)
     
     data = {}
-    data["op"]   = 'delete'
-    data["type"] = 'person'
-    data["id"]   = id
+    data["path"]   = 'create'
+    data["query"] = {}
+
+    if not id:
+        data["query"]["id"]   = id
 
     if not username:
         data["name"] = username
 
-    request_json = {"data" : data}
 
-    req = json.dumps(request_json)
+    req = json.dumps(data)
     m = Message()
     m.set_body(req)
 

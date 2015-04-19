@@ -11,26 +11,22 @@ import boto.sqs
 import boto.sqs.message
 from boto.sqs.message import Message
 
-def do_retrieve(accID, accName, activities, response, sqs):
+def do_retrieve(accID, accName, response, sqs):
 
     id            = str(accID)
     username      = str(accName)
-    lstActivities = str(activities)
-    
-    data = {}
-    data["op"]   = 'retrieve'
-    data["type"] = 'person'
-    data["id"]   = id
 
-    if not username:
+    data = {}
+    data["path"]   = 'retrieve'
+    data["query"] = {}
+
+    if id:
+        data["query"]["id"]   = id
+
+    if username:
         data["name"] = username
 
-    if not activities:
-        data["activities"] = activities
-
-    request_json = {"data" : data}
-
-    req = json.dumps(request_json)
+    req = json.dumps(data)
     m = Message()
     m.set_body(req)
 
