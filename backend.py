@@ -16,6 +16,7 @@ from bottle import route, run, request, response, default_app
 import config
 
 QUEUE_OUT = sys.argv[1]
+VISIBILITY_TIMEOUT_S = 20
 MAX_WAIT_S = 20 # SQS sets max. of 20 s
 
 
@@ -45,18 +46,21 @@ def app():
       Put the message body in `resp`.
     '''
     print("Reading from output queue...")
-    m = out_q.read(None, MAX_WAIT_S)
+    msg = out_q.read(VISIBILITY_TIMEOUT_S, MAX_WAIT_S)
 
 
-    #m = {'id': 0, 'f': 10, 's': 10, 'actual_s': 5}
-    if m == None:
+    if msg == None:
         response.status = 204 # "No content"
         return ''
     else:
-      resp = m.get_body() + '\n'
-      out_q.delete_message(m)
-      #resp = {'id': 0, 'f': 10, 's': 10, 'actual_s': 5}
-      return resp
+  		msg_body = msg.get_body()
+  		print msg_body
+  		converted_msg = json.loads(msg_body)
+  		response.status = int(converted_msg['HTTP_status'])
+  		resp = converted_msg['HTTP_response']
+
+  		out_q.delete_message(msg)
+  		return resp
 
 app = default_app()
 run(app, host=config.DEFAULT_SUBSCRIBE_TO, port=config.PORT_BACK)
