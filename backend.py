@@ -43,22 +43,19 @@ def app():
       Add code to read a message from the output queue into `m`.
       Put the message body in `resp`.
     '''
-    print("Reading from output queue...")
     msg = out_q.read(visibility_timeout=VISIBILITY_TIMEOUT_S)
-
 
     if msg is None:
         response.status = 204 # "No content"
         return ''
     else:
-  		msg_body = msg.get_body()
-  		print msg_body
-  		converted_msg = json.loads(msg_body)
-  		response.status = int(converted_msg['HTTP_status'])
-  		resp = converted_msg['HTTP_response']
+        msg_body = msg.get_body()
+        converted_msg = json.loads(msg_body)
+        response.status = int(converted_msg['HTTP_status'])
+        resp = converted_msg['HTTP_response']
 
-  		out_q.delete_message(msg)
-  		return resp
+        out_q.delete_message(msg)
+        return resp
 
 app = default_app()
 run(app, host=config.DEFAULT_SUBSCRIBE_TO, port=config.PORT_BACK)
