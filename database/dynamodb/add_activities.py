@@ -52,9 +52,8 @@ def do_add_activities(table, user_id, add_activities):
                 time.sleep(1)
     else:
         request_json = {
-            'error': [{
+            'errors': [{
                 'not_found' : {
-                    'status': '404',
                     'id': user_id
                 }
             }]
