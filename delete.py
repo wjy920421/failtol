@@ -13,19 +13,16 @@ from boto.sqs.message import Message
 
 
 def do_delete(accID, accName, response, sqs):
-
-    id       = str(accID)
-    username = str(accName)
     
     data = {}
-    data["path"]   = 'create'
+    data["path"] = 'delete'
     data["query"] = {}
 
-    if id:
-        data["query"]["id"]   = id
+    if accID:
+        data["query"]["id"] = str(accID)
 
-    if username:
-        data["name"] = username
+    if accName:
+        data["query"]["name"] = str(accName)
 
 
     req = json.dumps(data)
