@@ -29,7 +29,7 @@ try:
       Add code to open the output queue.
     '''
     #conn.create_queue(QUEUE_OUT)
-    out_q = conn.get_queue(QUEUE_OUT)
+    out_q = conn.create_queue(QUEUE_OUT)
 
 except Exception as e:
     sys.stderr.write("Exception connecting to SQS\n")
@@ -47,7 +47,7 @@ def app():
     msg = out_q.read(visibility_timeout=VISIBILITY_TIMEOUT_S)
 
 
-    if msg == None:
+    if msg is None:
         response.status = 204 # "No content"
         return ''
     else:
