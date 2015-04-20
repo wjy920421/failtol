@@ -30,14 +30,14 @@ app = Bottle()
 
 QUEUE_IN = sys.argv[1]
 
-QUERY_PATTERN_ID = "^[0-9]*$" 
+QUERY_PATTERN_ID = "^[0-9]+$" 
 ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
 
 QUERY_PATTERN_NAME = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
 NAME_PATTERN       = re.compile(QUERY_PATTERN_NAME)
 
-# QUERY_PATTERN_ACTIVITIES = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
-# ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
+QUERY_PATTERN_ACTIVITIES = "^([a-z_A-Z-]+(,[a-z_A-Z-]+)*)$"
+ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
 
 conn = boto.sqs.connect_to_region(config.AWS_REGION)
 
@@ -74,8 +74,10 @@ def create():
     else:
         validName = False
 
-    if (userActivities is not None):
-        validActs = True # ACT_PATTERN.match(userActivities)
+    if (userActivities == ''):
+        validActs = True
+    elif (userActivities is not None):
+        validActs = ACT_PATTERN.match(userActivities)
     else:
         validActs = False
 
@@ -158,8 +160,10 @@ def add_activities():
     else:
         validId = False
 
-    if (userActivities is not None):
-        validActs = True # ACT_PATTERN.match(userActivities)
+    if (userActivities == ''):
+        validActs = True
+    elif (userActivities is not None):
+        validActs = ACT_PATTERN.match(userActivities)
     else:
         validActs = False
         
