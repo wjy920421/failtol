@@ -306,6 +306,59 @@ class TestModule(unittest.TestCase):
 
         # Terminate frontend
         p.terminate()
+    
+    def test_frontend_add_activities_query_match_id(self): #with correct ID and activites
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/add_activities?id=1&activities=a,b,c')
+        self.assertEqual(r.status_code, 202)
+        self.assertEqual(r.text, '{"data": {"msg": "Accepted", "type": "Notification"}}')
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_add_activities_query_no_id(self): #with no ID
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/add_activities?activities=a,b,c')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_add_activities_query_no_activities(self): #with no activities
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/add_activities?id=1')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_add_activities_query_wrong_id(self): #with a bad id
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/add_activities?id=1a&activities=a,b,c')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
 
     
 
