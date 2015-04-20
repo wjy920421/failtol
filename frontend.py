@@ -21,10 +21,10 @@ from bottle import error, route
 
 import config
 
-import delete as delete_package
-import retrieve as retrieve_package
-import create as create_package
-import add_activities as add_activities_package
+from frontend_api import delete as delete_package
+from frontend_api import retrieve as retrieve_package
+from frontend_api import create as create_package
+from frontend_api import add_activities as add_activities_package
 
 app = Bottle()
 
