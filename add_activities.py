@@ -13,21 +13,17 @@ from boto.sqs.message import Message
 
 def do_add_activities(accID, activities, response, sqs):
 
-    id            = str(accID)
     activities_str = str(activities)
-    
     activitiesLst = [] if activities_str is None else [act for act in activities_str.split(',') if act != '']
     
     data = {}
-    data["path"]   = 'create'
+    data["path"] = 'add_activities'
     data["query"] = {}
 
-    if id:
-        data["query"]["id"]   = id
-        
-    if activities_str:
-        data["activities"] = activitiesLst
+    data["query"]["id"] = str(accID)
+    data["query"]["activities"] = activitiesLst
 
+    print data
 
     req = json.dumps(data)
     m = Message()

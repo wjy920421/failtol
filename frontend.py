@@ -36,8 +36,8 @@ ID_PATTERN       = re.compile(QUERY_PATTERN_ID)
 QUERY_PATTERN_NAME = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
 NAME_PATTERN       = re.compile(QUERY_PATTERN_NAME)
 
-QUERY_PATTERN_ACTIVITIES = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
-ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
+# QUERY_PATTERN_ACTIVITIES = "^([a-zA-Z]+(_[a-zA-Z]+)*)$"
+# ACT_PATTERN              = re.compile(QUERY_PATTERN_ACTIVITIES)
 
 conn = boto.sqs.connect_to_region(config.AWS_REGION)
 
@@ -74,12 +74,12 @@ def create():
     else:
         validName = False
 
-    if (userActivities):
-        validActs = ACT_PATTERN.match(userActivities)
+    if (userActivities is not None):
+        validActs = True # ACT_PATTERN.match(userActivities)
     else:
         validActs = False
 
-    if not (validId or validName or validActs):
+    if not (validId and validName and validActs):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
@@ -100,14 +100,14 @@ def retrieve():
     if (user_id):
         validId = ID_PATTERN.match(user_id)
     else:
-        validId = False
+        validId = True
 
     if (username):
         validName = NAME_PATTERN.match(username)
     else:
-        validName = False
+        validName = True
 
-    if not (validId or validName):
+    if not (validId and validName and (user_id is not None or username is not None)):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
@@ -128,14 +128,14 @@ def delete():
     if (user_id):
         validId = ID_PATTERN.match(user_id)
     else:
-        validId = False
+        validId = True
 
     if (username):
         validName = NAME_PATTERN.match(username)
     else:
-        validName = False
+        validName = True
 
-    if not (validId or validName):
+    if not (validId and validName and (user_id is not None or username is not None)):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 
@@ -158,13 +158,13 @@ def add_activities():
     else:
         validId = False
 
-    if (userActivities):
-        validActs = ACT_PATTERN.match(userActivities)
+    if (userActivities is not None):
+        validActs = True # ACT_PATTERN.match(userActivities)
     else:
         validActs = False
         
 
-    if not (validId or validActs):
+    if not (validId and validActs):
         response.status = 400
         abort(400,"Query did not match the pattern.")
 

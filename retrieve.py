@@ -13,18 +13,15 @@ from boto.sqs.message import Message
 
 def do_retrieve(accID, accName, response, sqs):
 
-    id            = str(accID)
-    username      = str(accName)
-
     data = {}
     data["path"]   = 'retrieve'
     data["query"] = {}
 
-    if id:
-        data["query"]["id"]   = id
+    if accID:
+        data["query"]["id"] = str(accID)
 
-    if username:
-        data["name"] = username
+    if accName:
+        data["query"]["name"] = str(accName)
 
     req = json.dumps(data)
     m = Message()

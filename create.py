@@ -14,36 +14,17 @@ from boto.sqs.message import Message
 
 
 def do_create(accID, accName, activities, response, sqs):
-
-    id            = str(accID)
-    username      = str(accName)
-    activities_str = str(activities)
     
+    activities_str = str(activities)
     activitiesLst = [] if activities_str is None else [act for act in activities_str.split(',') if act != '']
     
     data = {}
     data["path"]   = 'create'
     data["query"] = {}
 
-    if id:
-        data["query"]["id"]   = id
-        
-    if activities_str:
-        data["activities"] = activitiesLst
-    
-    data = {}
-    data["path"]   = 'create'
-    data["query"] = {}
-
-    if id:
-        data["query"]["id"]   = id
-        
-    if username:
-        data["query"]["name"] = username
-
-    if activities:
-        data["query"]["activities"] = activitiesLst
-
+    data["query"]["id"] = str(accID)
+    data["query"]["name"] = str(accName)
+    data["query"]["activities"] = activitiesLst
 
     req = json.dumps(data)
     m = Message()
