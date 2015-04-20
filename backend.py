@@ -44,7 +44,7 @@ def app():
       Put the message body in `resp`.
     '''
     print("Reading from output queue...")
-    msg = out_q.read(VISIBILITY_TIMEOUT_S, config.MAX_WAIT_S_BACK)
+    msg = out_q.read(visibility_timeout=VISIBILITY_TIMEOUT_S)
 
 
     if msg == None:

@@ -20,7 +20,6 @@ DEFAULT_READ_CAPACITY   = 10
 # Additional constants for frontend and backend
 PORT = 8080
 MAX_SECONDS = 180
-MAX_WAIT_S_BACK = 2
 PORT_BACK = 8081
 
 # Instance naming
