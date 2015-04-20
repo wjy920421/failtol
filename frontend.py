@@ -99,12 +99,12 @@ def retrieve():
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
-    if (user_id):
+    if (user_id is not None):
         validId = ID_PATTERN.match(user_id)
     else:
         validId = True
 
-    if (username):
+    if (username is not None):
         validName = NAME_PATTERN.match(username)
     else:
         validName = True
@@ -127,12 +127,12 @@ def delete():
     
     my_queue    = conn.get_queue(QUEUE_IN)
 
-    if (user_id):
+    if (user_id is not None):
         validId = ID_PATTERN.match(user_id)
     else:
         validId = True
 
-    if (username):
+    if (username is not None):
         validName = NAME_PATTERN.match(username)
     else:
         validName = True
