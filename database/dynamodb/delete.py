@@ -29,7 +29,6 @@ def do_delete(table, accID, accName):
                     req = {'data':{ #printing out
                     'type'       : 'person',
                     'id'         : data['id'],
-                    'name'       : data['name'],          
                     }}
                     status_code = 200
 
@@ -55,7 +54,6 @@ def do_delete(table, accID, accName):
                 req = {'data':{ #printing out
                 'type'       : 'person',
                 'id'         : data['id'],
-                'name'       : data['name'],
                 }}
                 status_code = 200
             else:
