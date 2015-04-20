@@ -26,6 +26,7 @@ for name in "${array[@]}"; do
     echo "instances: $INSTANCES"
     echo "proxied instances: $PROXIED_INSTANCES"
     python db.py $ZOOKEEPER_HOST $name "$INSTANCES" "$PROXIED_INSTANCES" $BASE_PORT "localhost" $SQS_IN $SQS_OUT $WRITE_CAP $READ_CAP &
+    sleep 2
 done
 
 python frontend.py $SQS_IN &
