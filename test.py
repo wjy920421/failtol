@@ -253,6 +253,62 @@ class TestModule(unittest.TestCase):
         # Terminate frontend
         p.terminate()
 
+    def test_frontend_retrieve_query_notmatch_id(self): #with wrong ID
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/retrieve?id=adsadasdas')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_retrieve_query_match_id(self): #with correct ID
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/retrieve?id=121')
+        self.assertEqual(r.status_code, 202)
+        self.assertEqual(r.text, '{"data": {"msg": "Accepted", "type": "Notification"}}')
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_retrieve_query_notmatch_id_name(self): #with wrong ID and name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/retrieve?id=adsadasdas&name+**&*&*')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_retrieve_query_match_id_name(self): #with correct ID and name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/retrieve?id=121&name=DjWangM')
+        self.assertEqual(r.status_code, 202)
+        self.assertEqual(r.text, '{"data": {"msg": "Accepted", "type": "Notification"}}')
+
+        # Terminate frontend
+        p.terminate()
+
+    
+
 
 if __name__ == '__main__':
     unittest.main()
