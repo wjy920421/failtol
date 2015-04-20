@@ -9,6 +9,10 @@ import boto.dynamodb2
 from boto.dynamodb2.fields import HashKey
 from boto.dynamodb2.table import Table
 
+import time
+import json
+import random
+
 import config
 
 
@@ -19,8 +23,11 @@ class DynamoDBManager():
         self.WRITE_CAP = write_cap
         self.READ_CAP = read_cap
         self.create_table()
+        print 'Table "%s" has been created.' % self.TABLE_NAME
 
-    def execute(self, request):
+    def execute(self, request_json):
+        request = json.loads(request_json)
+
         request_path = request['path']
         request_query = request['query']
         if request_path == 'create':
@@ -32,7 +39,7 @@ class DynamoDBManager():
         elif request_path == 'add_activities':
             response_json = self.do_add_activities(request_query.get('id',None), request_query.get('activities',[]))
         else:
-            response_json = {'error':'invalid operation'}
+            raise Exception('Invalid operation for DynamoDBManager')
 
         return response_json
 
@@ -61,9 +68,16 @@ class DynamoDBManager():
         table = self.get_table()
         try:
             table.delete()
-            return 'Table is deleted.'
+            print 'Table "%s" has been deleted.' % self.TABLE_NAME
         except Exception, e:
-            return ''
+            wait_time = random.uniform(0.5, 2.0)
+            print 'Failed to delete table "%s". Re-Try it %s seconds later.' % (self.TABLE_NAME, wait_time)
+            time.sleep(wait_time)
+            try:
+                table.delete()
+                print 'Table "%s" has been deleted.' % self.TABLE_NAME
+            except Exception, e:
+                print str(e)
 
     def do_create(self, user_id, username, activities):
         table = self.get_table()

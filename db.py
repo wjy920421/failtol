@@ -63,9 +63,7 @@ def setup_sqs(queue_in_name, queue_out_name):
         sys.exit(1)
 
 def setup_synchronization():
-    # global cv
     global exit_signal
-    # cv = threading.Condition()
     exit_signal = False
 
 def subscribe():
@@ -79,11 +77,9 @@ def subscribe():
             time.sleep(config.DEFAULT_DB_WAIT_S)
             continue
 
-        # print "Subscribe: %s" % msg
-
-        request_dict = json.loads(msg)
-        seq = request_dict['seq_num']
-        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
+        internal_request_dict = json.loads(msg)
+        seq = int(internal_request_dict['seq_num'])
+        message_queue.push(msg_obj=dict(internal_request_dict), seq_num=seq)
 
     print "Subscribe thread terminated"
 
@@ -108,23 +104,15 @@ def worker():
 
         # Convert the message to a dictionary
         request_json = request_message.get_body()
-        # print "Request received from SQS-in: %s" % request_json
-        try:
-            request_dict = json.loads(request_json)
-        except Exception as e:
-            print "Invalid Request."
-            queue_in.delete_message(request_message)
-            continue
 
         # Insert the message into MessageQueue
-        request_dict['primary'] = True
-        message_queue.push(msg_obj=dict(request_dict), seq_num=seq)
+        internal_request_dict = {'primary':True, 'seq_num':seq, 'request_json':request_json}
+        message_queue.push(msg_obj=dict(internal_request_dict), seq_num=seq)
 
-        # Publish for synchronization
-        request_dict['seq_num'] = seq
-        request_dict['primary'] = False
-        request_json = json.dumps(request_dict)
-        pubsub_manager.publish(request_json)
+        # Publish to other DBs for synchronization
+        internal_request_dict = {'primary':False, 'seq_num':seq, 'request_json':request_json}
+        internal_request_json = json.dumps(internal_request_dict)
+        pubsub_manager.publish(internal_request_json)
         
         # Delete the message
         queue_in.delete_message(request_message)
@@ -136,25 +124,28 @@ def process():
     global queue_out
     global db_manager
     global message_queue
+    global instance_name
 
     while not exit_signal:
         # Pop the message from MessageQueue
-        request_dict = message_queue.pop()
-        if request_dict is None:
+        internal_request_dict = message_queue.pop()
+        if internal_request_dict is None:
             continue
 
-        print "Processing request%s: %s" % (" (primary)" if request_dict['primary'] else "", request_dict)
+        print "[%s] [%s] Processing request%s: seq=%s, %s" % (time.strftime("%d/%b/%Y %H:%M:%S"), instance_name, " (primary)" if internal_request_dict['primary'] else "", internal_request_dict['seq_num'], internal_request_dict['request_json'])
 
         # Perform the operation as specified in the message
-        response_json = db_manager.execute(request_dict)
-
-        # Insert the response in the output queue, in JSON representation.
-        # Only the primary database writes the result
-        if request_dict['primary'] == True:
-            response_message = boto.sqs.message.Message()
-            response_message.set_body(response_json)
-            queue_out.write(response_message)
-            # print "Response inserted into SQS-out: %s" % response_json
+        try:
+            response_json = db_manager.execute(internal_request_dict['request_json'])
+            # Insert the response in the output queue, in JSON representation.
+            # Only the primary database writes the result
+            if internal_request_dict['primary'] == True:
+                response_message = boto.sqs.message.Message()
+                response_message.set_body(response_json)
+                queue_out.write(response_message)
+        except:
+            message_queue.set_last_seq(int(internal_request_dict['seq_num']))
+            print "Failed to process request (seq=%s). MessageQueue will skip this request." % internal_request_dict['seq_num']
 
     print "Process thread terminated"
 
@@ -167,6 +158,7 @@ def main():
     global zk_client
     global db_manager
     global message_queue
+    global instance_name
     global pubsub_manager
 
     # Parse the arguments
@@ -189,7 +181,6 @@ def main():
 
     # Initialize DynamoDB
     db_manager = DynamoDBManager(table_name=DYNAMODB_NAME, aws_region=config.AWS_REGION, write_cap=write_cap, read_cap=read_cap)
-    print 'Table named "%s" has been created.' % DYNAMODB_NAME
     if config.DELETE_DYNAMODB_ON_EXIT:
         atexit.register(db_manager.delete_table)
 
