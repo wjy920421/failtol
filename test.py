@@ -158,6 +158,46 @@ class TestModule(unittest.TestCase):
     #     p.terminate()
     #     conn.delete_queue(queue_in_name)
     #     conn.delete_queue(queue_out_name)
+##    def test_frontend_retrieve(self):
+##        FNULL = open(os.devnull, 'w')
+##        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+##
+##        time.sleep(1)
+##
+##        # Try getting items
+##        r = requests.get('http://localhost:8080/retrieve?id=34390&name=dsaa')
+##        self.assertEqual(r.status_code, 204)
+##        self.assertEqual(r.text, '')
+##
+##        # Terminate frontend
+##        p.terminate()
+
+    def test_frontend_create_querynotmatch_noactivities(self): #without activites
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/create?id=34390&name=dsaa')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_create_query_match_activities(self): #with activites
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/create?id=34390&name=dsaa&activities=a,b,c')
+        self.assertEqual(r.status_code, 204)
+        self.assertEqual(r.text, '')
+
+        # Terminate frontend
+        p.terminate()
 
 
 if __name__ == '__main__':
