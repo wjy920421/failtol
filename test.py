@@ -199,6 +199,20 @@ class TestModule(unittest.TestCase):
         # Terminate frontend
         p.terminate()
 
+    def test_frontend_create_query_empty_activities(self): #with empty activities
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Try creating items
+        r = requests.get('http://localhost:8080/create?id=2347&name=bob&activities=')
+        self.assertEqual(r.status_code, 202)
+        self.assertEqual(r.text, '{"data": {"msg": "Accepted", "type": "Notification"}}')
+
+        # Terminate frontend
+        p.terminate()
+
     def test_frontend_delete_query_notmatch_id(self): #with wrong ID
         FNULL = open(os.devnull, 'w')
         p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
@@ -250,6 +264,32 @@ class TestModule(unittest.TestCase):
         self.assertEqual(r.status_code, 202)
         self.assertEqual(r.text, '{"data": {"msg": "Accepted", "type": "Notification"}}')
 
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_delete_query_empty_id(self): #with empty id and no name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/delete?id=')
+        self.assertEqual(r.status_code, 400)
+        
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_delete_query_empty_id_with_name(self): #with empty id and valid name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/delete?id=&name=peter')
+        self.assertEqual(r.status_code, 400)
+        
         # Terminate frontend
         p.terminate()
 
@@ -306,6 +346,33 @@ class TestModule(unittest.TestCase):
 
         # Terminate frontend
         p.terminate()
+
+    def test_frontend_retrieve_query_empty_id(self): #with empty ID and no name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/retrieve?id=')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
+    def test_frontend_retrieve_query_empty_id_with_name(self): #with empty ID and valid name
+        FNULL = open(os.devnull, 'w')
+        p = subprocess.Popen(['./frontend.py', 'TEAM_LOADBALANCE_IN_TEST'], env=os.environ.copy(), stdout=FNULL, stderr=subprocess.STDOUT)
+
+        time.sleep(1)
+
+        # Deleting an item
+        r = requests.get('http://localhost:8080/retrieve?id=&name=bob')
+        self.assertEqual(r.status_code, 400)
+
+        # Terminate frontend
+        p.terminate()
+
     
     def test_frontend_add_activities_query_match_id(self): #with correct ID and activites
         FNULL = open(os.devnull, 'w')
